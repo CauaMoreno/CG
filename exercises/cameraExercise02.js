@@ -34,6 +34,10 @@ camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight,
    camera.up.copy( camUp );
    camera.lookAt(camLook);
 
+let cameraHolder = new THREE.Object3D()
+cameraHolder.add(camera)
+scene.add(cameraHolder)
+
 render();
 
 function updateCamera()
@@ -48,21 +52,21 @@ function keyboardUpdate() {
 
    keyboard.update();
    
-   if ( keyboard.down("left") )     camera.translateX( -1 );
-   if ( keyboard.down("right") )    camera.translateX(  1 );
-   if ( keyboard.down("up") )       camera.translateZ(  1 );
-   if ( keyboard.down("down") )     camera.translateZ( -1 );
-   if ( keyboard.down("pageup") )   camera.translateY(  1 );
-   if ( keyboard.down("pagedown") ) camera.translateY( -1 );
+   if ( keyboard.down("left") )     cameraHolder.translateX( -1 );
+   if ( keyboard.down("right") )    cameraHolder.translateX(  1 );
+   if ( keyboard.down("up") )       cameraHolder.translateZ(  1 );
+   if ( keyboard.down("down") )     cameraHolder.translateZ( -1 );
+   if ( keyboard.down("pageup") )   cameraHolder.translateY(  1 );
+   if ( keyboard.down("pagedown") ) cameraHolder.translateY( -1 );
 
-   camPos.copy(camera.position)
+   camPos.copy(cameraHolder.position)
    
-   if ( keyboard.down("W") )     camLook.y--;
-   if ( keyboard.down("A") )     camLook.x--;
-   if ( keyboard.down("S") )     camLook.y++;
-   if ( keyboard.down("D") )     camLook.x++;
-   if ( keyboard.down("Q") )     camLook.z--;
-   if ( keyboard.down("E") )     camLook.z++;
+   if ( keyboard.down("W") )     cameraHolder.rotateY( THREE.MathUtils.degToRad(-10) );
+   if ( keyboard.down("A") )     cameraHolder.rotateX( THREE.MathUtils.degToRad(-10) );
+   if ( keyboard.down("S") )     cameraHolder.rotateY( THREE.MathUtils.degToRad(10) );
+   if ( keyboard.down("D") )     cameraHolder.rotateX( THREE.MathUtils.degToRad(10) );
+   if ( keyboard.down("Q") )     cameraHolder.rotateZ( THREE.MathUtils.degToRad(-10) );
+   if ( keyboard.down("E") )     cameraHolder.rotateZ( THREE.MathUtils.degToRad(10) );
 
 
    updateCamera();

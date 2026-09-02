@@ -30,13 +30,24 @@ function render()
    renderer.render(scene, camera) // Render scene
 }
 
+const lerpConfig1 = {
+  destination: new THREE.Vector3(8.0, 1.0, 5.0),
+  alpha: 0.02,
+  move: true
+}
+
+const lerpConfig2 = {
+  destination: new THREE.Vector3(8.0, 1.0, -5.0),
+  alpha: 0.01,
+  move: true
+}
 
 function buildInterface()
 {
   var controls = new function ()
   {
     this.movePosition1 = function(){
-      console.log("Este botão ainda não faz nada - 1");
+      camera.up.position.lerp(lerpConfig1.destination, lerpConfig1.alpha)
     };
     this.movePosition2 = function(){
       console.log("Este botão ainda não faz nada - 2");

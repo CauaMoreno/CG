@@ -6,7 +6,7 @@ import {initRenderer,
         setDefaultMaterial,
         InfoBox,
         onWindowResize} from "../libs/util/util.js";
-import { createWalls, createGround } from "./Structures.js";
+import { createGround, createCastle } from "./Structures.js";
 
 let scene, renderer, camera, material, light, orbit; // Initial variables
 scene = new THREE.Scene();    // Create main scene
@@ -25,7 +25,8 @@ let axesHelper = new THREE.AxesHelper( 12 );
 scene.add( axesHelper );
 
 createGround(scene);
-createWalls(scene); // Create walls
+createCastle(scene);
+// createTower(scene);
 
 // Use this to show information onscreen
 let controls = new InfoBox();

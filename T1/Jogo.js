@@ -8,8 +8,9 @@ import {initRenderer,
         InfoBox,
         onWindowResize} from "../libs/util/util.js";
 import { createGround, createCastle } from "./Structures.js";
+import { CollisionSystem } from "./CollisionSystem.js";
 
-let scene, renderer, camera, material, light, orbit, controls, castle, walls; // Initial variables
+let scene, renderer, camera, material, light, controls, castle, walls; // Initial variables
 
 // Scene, Camera, Renderer
 scene = new THREE.Scene();    // Create main scene
@@ -22,6 +23,8 @@ camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight
 camera.position.set( 2, 8, 20 );
 camera.lookAt( 0, 0, 0 );
 scene.add(camera); // Add camera to the scene
+
+const collisionSystem = new CollisionSystem(camera, scene); // Create a collision system instance
 
 controls = new PointerLockControls(camera, renderer.domElement);
 renderer.domElement.addEventListener('click', function () {

@@ -22,6 +22,8 @@ let scene,
   ground; // Initial variables
 const gravity = 9.8; // Gravity constant
 let verticalVelocity = 0; // Vertical velocity of the player
+let isGrounded = false; // Flag to check if the player is on the ground
+let currentRamp = null; // Current ramp the player is on
 // Scene, Camera, Renderer
 scene = new THREE.Scene(); // Create main scene
 renderer = initRenderer(); // Init a basic renderer
@@ -88,134 +90,159 @@ function movementControls(key, value) {
 // Movement animation
 
 function moveAnimate(delta) {
-  const oldPosition = controls.object.position.clone();
 
-  //movimento
-  if (moveForward) {
-    controls.moveForward(speed * delta);
-  }
+  // POSIÇÃO ANTERIOR
+    const oldPosition =
+        controls.object.position.clone();
 
-  if (moveBackward) {
-    controls.moveForward(-speed * delta);
-  }
+    // MOVIMENTO HORIZONTAL
+    if (moveForward) {
+        controls.moveForward(speed * delta);
+    }
 
-  if (moveRight) {
-    controls.moveRight(speed * delta);
-  }
+    if (moveBackward) {
+        controls.moveForward(-speed * delta);
+    }
 
-  if (moveLeft) {
-    controls.moveRight(-speed * delta);
-  }
+    if (moveRight) {
+        controls.moveRight(speed * delta);
+    }
 
-  const targetPosition = controls.object.position.clone();
+    if (moveLeft) {
+        controls.moveRight(-speed * delta);
+    }
 
-  // colisoes na parede
-  controls.object.position.set(targetPosition.x, oldPosition.y, oldPosition.z);
-  if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-    controls.object.position.x = oldPosition.x;
-  }
-  const intermediateX = controls.object.position.x;
-  controls.object.position.set(intermediateX, oldPosition.y, targetPosition.z);
-  if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-    controls.object.position.z = oldPosition.z;
-  }
 
- const movement = new THREE.Vector3(
+    const targetPosition =
+        controls.object.position.clone();
+
+    // MOVIMENTO SOBRE RAMPA
+    const movement = new THREE.Vector3(
         targetPosition.x - oldPosition.x,
         0,
         targetPosition.z - oldPosition.z
     );
 
-    //verifica se esta na rampa
-    //movimento muda pois desliza na rampa ao inves de cair com gravidade
-    const ramp = collisionSystem.checkRamp(
-        oldPosition,
-        ramps
-    );
-    if (ramp !== null) {
-        // Projeta o movimento do jogador
-        // sobre a superfície da rampa
-        const normal = ramp.normal;
+
+    if (isGrounded && currentRamp !== null) {
+
         const projectedMovement =
-            movement.clone().projectOnPlane(normal);
+            movement
+                .clone()
+                .projectOnPlane(currentRamp.normal);
+
         controls.object.position.copy(oldPosition);
+
         controls.object.position.add(
             projectedMovement
         );
-        // Mantém o jogador exatamente sobre a rampa
-        const newRamp =
-            collisionSystem.checkRamp(
-                controls.object.position,
-                ramps
-            );
+    }
 
-        if (newRamp !== null) {
-            controls.object.position.y =
-                newRamp.height;
-            verticalVelocity = 0;
+    // COLISÃO COM PAREDES
+    controls.object.position.set(
+        targetPosition.x,
+        oldPosition.y,
+        oldPosition.z
+    );
+
+    if (
+        collisionSystem.checkWallCollision(
+            controls.object.position,
+            walls
+        )
+    ) {
+        controls.object.position.x =
+            oldPosition.x;
+    }
+
+
+    const xAfterCollision =
+        controls.object.position.x;
+
+    controls.object.position.set(
+        xAfterCollision,
+        oldPosition.y,
+        targetPosition.z
+    );
+
+    if (
+        collisionSystem.checkWallCollision(
+            controls.object.position,
+            walls
+        )
+    ) {
+        controls.object.position.z =
+            oldPosition.z;
+    }
+
+    // GRAVIDADE
+    verticalVelocity -= gravity * delta;
+
+    controls.object.position.y +=
+        verticalVelocity * delta;
+
+    // CHÃO
+    const groundHeight =
+        collisionSystem.checkGround(
+            controls.object.position,
+            floors
+        );
+
+    // RAMPA
+    const ramp =
+        collisionSystem.checkRamp(
+            controls.object.position,
+            ramps
+        );
+
+    // SUPERFÍCIE MAIS ALTA
+    let surfaceHeight = null;
+    let surfaceType = null;
+
+    if (groundHeight !== null) {
+
+        surfaceHeight = groundHeight;
+        surfaceType = "ground";
+    }
+
+    if (
+        ramp !== null &&
+        (
+            surfaceHeight === null ||
+            ramp.height > surfaceHeight
+        )
+    ) {
+
+        surfaceHeight = ramp.height;
+        surfaceType = "ramp";
+    }
+
+    // COLISÃO VERTICAL
+    if (
+        surfaceHeight !== null &&
+        controls.object.position.y <= surfaceHeight &&
+        verticalVelocity <= 0
+    ) {
+
+        controls.object.position.y =
+            surfaceHeight;
+
+        verticalVelocity = 0;
+
+        isGrounded = true;
+
+        if (surfaceType === "ramp") {
+            currentRamp = ramp;
+        }
+        else {
+            currentRamp = null;
         }
 
     }
     else {
-        // Colisão nas paredes
-        controls.object.position.set(
-            targetPosition.x,
-            oldPosition.y,
-            oldPosition.z
-        );
 
-        if (
-            collisionSystem.checkWallCollision(
-                controls.object.position,
-                walls
-            )
-        ) {
-            controls.object.position.x =
-                oldPosition.x;
-        }
-
-
-        const intermediateX =
-            controls.object.position.x;
-
-        controls.object.position.set(
-            intermediateX,
-            oldPosition.y,
-            targetPosition.z
-        );
-
-        if (
-            collisionSystem.checkWallCollision(
-                controls.object.position,
-                walls
-            )
-        ) {
-            controls.object.position.z =
-                oldPosition.z;
-        }
-
-        // Gravidade normal
-        verticalVelocity -= gravity * delta;
-
-        controls.object.position.y +=
-            verticalVelocity * delta;
-        // Chão normal
-        const groundHeight =
-            collisionSystem.checkGround(
-                controls.object.position,
-                floors
-            );
-
-        if (
-            groundHeight !== null &&
-            controls.object.position.y <= groundHeight
-        ) {
-
-            controls.object.position.y =
-                groundHeight;
-
-            verticalVelocity = 0;
-        }
+        isGrounded = false;
+        currentRamp = null;
     }
 }
 

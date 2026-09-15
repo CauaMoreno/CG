@@ -15,6 +15,7 @@ let mode = 1;
 
 let camera, camera1, camera2;
 let controls, orbitControls, pointerControls;
+const crosshair = document.getElementById("crosshair");
 
 let castle, walls, floors, ramps, ground;
 
@@ -109,12 +110,14 @@ function movementControls(key, value) {
           controls = pointerControls;
           orbitControls.enabled = false;
           pointerControls.lock();
+          crosshair.style.display = "block"; // Exibe a mira no modo 1
         } else {
           mode = 2;
           camera = camera2;
           controls = orbitControls;
           pointerControls.unlock();
           orbitControls.enabled = true;
+          crosshair.style.display = "none"; // Oculta a mira no modo 2
         }
 
         camera.aspect = window.innerWidth / window.innerHeight;

@@ -3,49 +3,56 @@ import * as THREE from 'three';
 export class CollisionSystem {
 
     constructor(camera, scene) {
-
         this.camera = camera;
         this.scene = scene;
-
         this.raycasterDown = new THREE.Raycaster(
             new THREE.Vector3(),
             new THREE.Vector3(0, -1, 0),
             0,
             10
         );
-
         this.raycasterForward = new THREE.Raycaster();
-
         this.playerRadius = 0.8;
         this.playerHeight = 2.0;
     }
-
-
-    checkGroundAndRamps(targetPosition, floors, ramps) {
-
-        this.raycasterDown.ray.origin.copy(targetPosition);
-
-        // Começa o raio um pouco acima da câmera
-        this.raycasterDown.ray.origin.y += 0.5;
-
-        const allObjects = [
-            ...floors,
-            ...ramps
-        ];
-
-        const intersects =
-            this.raycasterDown.intersectObjects(allObjects, true);
-
-        if (intersects.length > 0) {
-
-            const hit = intersects[0];
-
-            // Altura dos olhos/câmera em relação ao chão
-            return hit.point.y + this.playerHeight;
-        }
-
-        return null;
+    checkGround(targetPosition, floors) {
+    this.raycasterDown.ray.origin.copy(targetPosition);
+    // Começa o raio um pouco acima da câmera
+    this.raycasterDown.ray.origin.y += 0.5;
+    const intersects =
+        this.raycasterDown.intersectObjects(floors, true);
+    if (intersects.length > 0) {
+        const hit = intersects[0];
+        return hit.point.y + this.playerHeight;
     }
+    return null;
+}
+
+
+checkRamp(targetPosition, ramps) {
+    this.raycasterDown.ray.origin.copy(targetPosition);
+    // Começa o raio um pouco acima da câmera
+    this.raycasterDown.ray.origin.y += 0.5;
+    const intersects =
+        this.raycasterDown.intersectObjects(ramps, true);
+    if (intersects.length > 0) {
+        const hit = intersects[0];
+        // Normal da superfície da rampa em coordenadas de mundo
+        const normal = hit.face.normal.clone();
+        normal.applyNormalMatrix(
+            new THREE.Matrix3().getNormalMatrix(
+                hit.object.matrixWorld
+            )
+        );
+        normal.normalize();
+        return {
+            height: hit.point.y + this.playerHeight,
+            normal: normal,
+            point: hit.point.clone()
+        };
+    }
+    return null;
+}
 
 
     checkWallCollision(targetPosition, walls) {

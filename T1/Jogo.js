@@ -105,36 +105,115 @@ function moveAnimate(delta) {
   }
 
   const targetPosition = controls.object.position.clone();
+
   // colisoes na parede
   controls.object.position.set(targetPosition.x, oldPosition.y, oldPosition.z);
   if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
     controls.object.position.x = oldPosition.x;
   }
-
   const intermediateX = controls.object.position.x;
-
   controls.object.position.set(intermediateX, oldPosition.y, targetPosition.z);
-
   if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
     controls.object.position.z = oldPosition.z;
   }
-  // GRAVIDADE
-  verticalVelocity -= gravity * delta;
 
-  controls.object.position.y += verticalVelocity * delta;
+ const movement = new THREE.Vector3(
+        targetPosition.x - oldPosition.x,
+        0,
+        targetPosition.z - oldPosition.z
+    );
 
-  // COLISÃO COM CHÃO
-  const groundHeight = collisionSystem.checkGroundAndRamps(
-    controls.object.position,
-    floors,
-    ramps,
-  );
+    //verifica se esta na rampa
+    //movimento muda pois desliza na rampa ao inves de cair com gravidade
+    const ramp = collisionSystem.checkRamp(
+        oldPosition,
+        ramps
+    );
+    if (ramp !== null) {
+        // Projeta o movimento do jogador
+        // sobre a superfície da rampa
+        const normal = ramp.normal;
+        const projectedMovement =
+            movement.clone().projectOnPlane(normal);
+        controls.object.position.copy(oldPosition);
+        controls.object.position.add(
+            projectedMovement
+        );
+        // Mantém o jogador exatamente sobre a rampa
+        const newRamp =
+            collisionSystem.checkRamp(
+                controls.object.position,
+                ramps
+            );
 
-  if (groundHeight !== null && controls.object.position.y <= groundHeight) {
-    controls.object.position.y = groundHeight;
+        if (newRamp !== null) {
+            controls.object.position.y =
+                newRamp.height;
+            verticalVelocity = 0;
+        }
 
-    verticalVelocity = 0;
-  }
+    }
+    else {
+        // Colisão nas paredes
+        controls.object.position.set(
+            targetPosition.x,
+            oldPosition.y,
+            oldPosition.z
+        );
+
+        if (
+            collisionSystem.checkWallCollision(
+                controls.object.position,
+                walls
+            )
+        ) {
+            controls.object.position.x =
+                oldPosition.x;
+        }
+
+
+        const intermediateX =
+            controls.object.position.x;
+
+        controls.object.position.set(
+            intermediateX,
+            oldPosition.y,
+            targetPosition.z
+        );
+
+        if (
+            collisionSystem.checkWallCollision(
+                controls.object.position,
+                walls
+            )
+        ) {
+            controls.object.position.z =
+                oldPosition.z;
+        }
+
+        // Gravidade normal
+        verticalVelocity -= gravity * delta;
+
+        controls.object.position.y +=
+            verticalVelocity * delta;
+        // Chão normal
+        const groundHeight =
+            collisionSystem.checkGround(
+                controls.object.position,
+                floors
+            );
+
+        if (
+            groundHeight !== null &&
+            controls.object.position.y <= groundHeight
+        ) {
+
+            controls.object.position.y =
+                groundHeight;
+
+            verticalVelocity = 0;
+        }
+    }
 }
 
 // Listen window size changes

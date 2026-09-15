@@ -517,4 +517,5 @@ export function createCastle(scene, position = new THREE.Vector3(0, 0, 0), rotat
 export function createGround(scene) {
     let plane = createGroundPlaneXZ(160, 160);
     scene.add(plane);
+    return plane;
 }

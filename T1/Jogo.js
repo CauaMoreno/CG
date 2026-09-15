@@ -10,7 +10,9 @@ import {initRenderer,
 import { createGround, createCastle } from "./Structures.js";
 import { CollisionSystem } from "./CollisionSystem.js";
 
-let scene, renderer, camera, material, light, controls, castle, walls; // Initial variables
+let scene, renderer, camera, material, light, controls, castle, walls, floors, ramps, ground; // Initial variables
+const gravity = 9.8; // Gravity constant
+let verticalVelocity = 0; // Vertical velocity of the player
 
 // Scene, Camera, Renderer
 scene = new THREE.Scene();    // Create main scene
@@ -20,7 +22,7 @@ light = initDefaultBasicLight(scene); // Create a basic light to illuminate the 
 
 // Camera
 camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 ); // mudar
-camera.position.set( 2, 8, 20 );
+camera.position.set( 2, 50, 20 );
 camera.lookAt( 0, 0, 0 );
 scene.add(camera); // Add camera to the scene
 
@@ -67,40 +69,118 @@ function movementControls(key, value) {
 // Movement animation
 
 function moveAnimate(delta) {
+
+    if (!controls.isLocked)
+        return;
+
+
+    // ==================================================
+    // POSIÇÃO ANTERIOR
+    // ==================================================
+
     const oldPosition = controls.object.position.clone();
 
-    if(!controls.isLocked) return;
+
+    // ==================================================
+    // MOVIMENTO HORIZONTAL
+    // ==================================================
 
     if (moveForward) {
         controls.moveForward(speed * delta);
     }
-    else if (moveBackward) {
-        controls.moveForward(speed * -1 * delta);
+
+    if (moveBackward) {
+        controls.moveForward(-speed * delta);
     }
 
     if (moveRight) {
         controls.moveRight(speed * delta);
     }
-    else if (moveLeft) {
-        controls.moveRight(speed * -1 * delta);
+
+    if (moveLeft) {
+        controls.moveRight(-speed * delta);
     }
 
-    // --- LÓGICA DE DESLIZAMENTO (SEPARAÇÃO DE EIXOS) ---
-    
-    // Salva a posição após a tentativa de movimento do PointerLockControls
-    const targetPosition = controls.object.position.clone();
 
-    // Teste 1: Tenta mover apenas no Eixo X
-    controls.object.position.set(targetPosition.x, oldPosition.y, oldPosition.z);
-    if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-        controls.object.position.x = oldPosition.x; // Reverte X se bateu
+    // Posição depois do movimento horizontal
+    const targetPosition =
+        controls.object.position.clone();
+
+
+    // ==================================================
+    // COLISÃO NO EIXO X
+    // ==================================================
+
+    controls.object.position.set(
+        targetPosition.x,
+        oldPosition.y,
+        oldPosition.z
+    );
+
+    if (collisionSystem.checkWallCollision(
+        controls.object.position,
+        walls
+    )) {
+
+        controls.object.position.x =
+            oldPosition.x;
     }
 
-    // Teste 2: Tenta mover apenas no Eixo Z (mantendo o X que passou ou foi revertido)
-    const intermediateX = controls.object.position.x;
-    controls.object.position.set(intermediateX, oldPosition.y, targetPosition.z);
-    if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-        controls.object.position.z = oldPosition.z; // Reverte Z se bateu
+
+    // ==================================================
+    // COLISÃO NO EIXO Z
+    // ==================================================
+
+    const intermediateX =
+        controls.object.position.x;
+
+    controls.object.position.set(
+        intermediateX,
+        oldPosition.y,
+        targetPosition.z
+    );
+
+    if (collisionSystem.checkWallCollision(
+        controls.object.position,
+        walls
+    )) {
+
+        controls.object.position.z =
+            oldPosition.z;
+    }
+
+
+    // ==================================================
+    // GRAVIDADE
+    // ==================================================
+
+    verticalVelocity -= gravity * delta;
+
+    controls.object.position.y +=
+        verticalVelocity * delta;
+
+
+    // ==================================================
+    // COLISÃO COM CHÃO / RAMPA
+    // ==================================================
+
+    const groundHeight =
+        collisionSystem.checkGroundAndRamps(
+            controls.object.position,
+            floors,
+            ramps
+        );
+
+
+    if (
+        groundHeight !== null &&
+        controls.object.position.y <= groundHeight
+    ) {
+
+        controls.object.position.y =
+            groundHeight;
+
+        verticalVelocity = 0;
     }
 }
 
@@ -111,9 +191,12 @@ window.addEventListener( 'resize', function(){onWindowResize(camera, renderer)},
 let axesHelper = new THREE.AxesHelper( 12 );
 scene.add( axesHelper );
 
-createGround(scene);
+ground = createGround(scene);
 castle = createCastle(scene);
 walls = castle.walls;
+floors = castle.floors;
+ramps = castle.ramps;
+floors.push(ground); // Add ground to the floors array
 // createTower(scene);
 
 // Use this to show information onscreen

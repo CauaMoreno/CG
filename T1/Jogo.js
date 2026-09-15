@@ -40,7 +40,7 @@ camera1.position.set(2, 50, 20);
 
 // Câmera 2 (Modo Espectador / Órbita)
 camera2 = new THREE.PerspectiveCamera(
-  45,
+  75,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
@@ -101,23 +101,24 @@ function movementControls(key, value) {
       moveRight = value;
       break;
 
-    case 49: // Tecla 1: Primeira Pessoa
-      if (value && mode !== 1) {
-        mode = 1;
-        camera = camera1;
-        controls = pointerControls;
-        orbitControls.enabled = false;
-        pointerControls.lock();
-      }
-      break;
+    case 67: // Tecla C
+      if (value) {
+        if (mode === 2) {
+          mode = 1;
+          camera = camera1;
+          controls = pointerControls;
+          orbitControls.enabled = false;
+          pointerControls.lock();
+        } else {
+          mode = 2;
+          camera = camera2;
+          controls = orbitControls;
+          pointerControls.unlock();
+          orbitControls.enabled = true;
+        }
 
-    case 50: // Tecla 2: Espectador (OrbitControls)
-      if (value && mode !== 2) {
-        mode = 2;
-        camera = camera2;
-        controls = orbitControls;
-        pointerControls.unlock();
-        orbitControls.enabled = true;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
       }
       break;
   }

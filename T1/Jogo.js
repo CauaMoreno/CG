@@ -68,15 +68,22 @@ window.addEventListener("keyup", function (event) {
 function movementControls(key, value) {
   switch (key) {
     case 87: // W
+    case 38: // Seta para cima
       moveForward = value;
       break;
+
     case 83: // S
+    case 40: // Seta para baixo
       moveBackward = value;
       break;
+
     case 65: // A
+    case 37: // Seta para esquerda
       moveLeft = value;
       break;
+
     case 68: // D
+    case 39: // Seta para direita
       moveRight = value;
       break;
   }

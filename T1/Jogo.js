@@ -1,12 +1,9 @@
 import * as THREE from "three";
-import { OrbitControls } from "../build/jsm/controls/OrbitControls.js";
 import { PointerLockControls } from "../build/jsm/controls/PointerLockControls.js";
 import {
   initRenderer,
-  initCamera,
   initDefaultBasicLight,
   setDefaultMaterial,
-  InfoBox,
   onWindowResize,
 } from "../libs/util/util.js";
 import { createGround, createCastle } from "./Structures.js";
@@ -24,7 +21,6 @@ let scene,
   ramps,
   ground; // Initial variables
 const gravity = 9.8; // Gravity constant
-const collisionSystem = new CollisionSystem(camera, scene); // Create a collision system instance
 let verticalVelocity = 0; // Vertical velocity of the player
 // Scene, Camera, Renderer
 scene = new THREE.Scene(); // Create main scene
@@ -41,7 +37,7 @@ camera = new THREE.PerspectiveCamera(
 camera.position.set(2, 50, 20);
 camera.lookAt(0, 0, 0);
 scene.add(camera); // Add camera to the scene
-
+const collisionSystem = new CollisionSystem(camera, scene); // Create a collision system instance
 
 controls = new PointerLockControls(camera, renderer.domElement);
 renderer.domElement.addEventListener("click", function () {

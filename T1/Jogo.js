@@ -17,7 +17,7 @@ let camera, camera1, camera2;
 let controls, orbitControls, pointerControls;
 const crosshair = document.getElementById("crosshair");
 
-let castle, walls, floors, ramps, ground;
+let castle, walls, floors, ramps, cylinders, ground;
 
 const gravity = 9.8;
 let verticalVelocity = 0;
@@ -151,6 +151,16 @@ function moveAnimate(delta) {
     controls.object.position.add(movement);
   }
 
+  const cylinderResult = collisionSystem.checkCylinderCollision(
+    controls.object.position,
+    cylinders
+  );
+  controls.object.position.set(
+    cylinderResult.position.x,
+    oldPosition.y,
+    cylinderResult.position.z
+  );
+
   const positionBeforeWallCollision = controls.object.position.clone();
 
   // Colisão Eixo X
@@ -235,6 +245,7 @@ castle = createCastle(scene);
 walls = castle.walls;
 floors = castle.floors;
 ramps = castle.ramps;
+cylinders = castle.cylinders;
 floors.push(ground);
 
 // Loop Único de Renderização

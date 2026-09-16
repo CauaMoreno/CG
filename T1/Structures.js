@@ -22,7 +22,8 @@ export class Structure {
     this.walls = [];
     this.floors = [];
     this.ramps = [];
-    this.decor = []
+    this.decor = [];
+    this.cylinders = [];
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -49,6 +50,10 @@ export class Structure {
     this.decor.push(mesh);
     this.group.add(mesh);
   }
+
+  addCylinderCollider(cylinder) {
+    this.cylinders.push(cylinder);
+  }
 }
 
 /**
@@ -71,6 +76,16 @@ export function createCastle(
 
   const halfW = castleWidth / 2;
   const halfD = castleDepth / 2;
+
+  function localToWorldXZ(localX, localZ) {
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+
+    return {
+      x: position.x + (localX * cos + localZ * sin),
+      z: position.z + (-localX * sin + localZ * cos),
+    };
+}
 
   // ==========================================================
   // HELPERS — Geometria básica (paredes e portas)
@@ -240,28 +255,37 @@ export function createCastle(
   // ==========================================================
 
   function createHollowRoundTower(
-    radius,
+    outerRadius,
     height,
     posX,
     posZ,
-    segments = 8,
+    segments = 32,
     t = 1.0,
     mat = materialTorre,
   ) {
-    const angleStep = (Math.PI * 2) / segments;
-    const segmentWidth = 2 * radius * Math.tan(angleStep / 2) + 0.2;
+    const innerRadius = outerRadius - t;
 
-    for (let i = 0; i < segments; i++) {
-      const angle = i * angleStep;
-      const x = posX + Math.cos(angle) * radius;
-      const z = posZ + Math.sin(angle) * radius;
+    const profile = [
+      new THREE.Vector2(outerRadius, 0),
+      new THREE.Vector2(outerRadius, height),
+      new THREE.Vector2(innerRadius, height),
+      new THREE.Vector2(innerRadius, 0),
+    ];
 
-      const geo = new THREE.BoxGeometry(segmentWidth, height, t);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, height / 2, z);
-      mesh.rotation.y = -angle + Math.PI / 2;
-      castle.addWall(mesh);
-    }
+    const geo = new THREE.LatheGeometry(profile, segments);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(posX, 0, posZ);
+    castle.addDecor(mesh); // apenas visual
+
+    const worldPos = localToWorldXZ(posX, posZ);
+    castle.addCylinderCollider({
+      x: worldPos.x,
+      z: worldPos.z,
+      outerRadius,
+      height,
+    });
+
+    return mesh;
   }
 
   function createHollowSquareTower(

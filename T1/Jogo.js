@@ -26,6 +26,7 @@ let currentRamp = null;
 
 // Inicialização da Cena e Renderizador
 scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
 renderer = initRenderer();
 material = setDefaultMaterial();
 light = initDefaultBasicLight(scene);

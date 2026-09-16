@@ -1,13 +1,19 @@
 import { setDefaultMaterial, createGroundPlaneXZ } from "../libs/util/util.js";
 import * as THREE from "three";
 
-// Materiais para identificação visual
+// ============================================================
+// MATERIAIS
+// ============================================================
 const materialMuralha = setDefaultMaterial("rgb(150,142,128)"); // pedra arenito (sandstone), tom do castelo real
 const materialTorre = setDefaultMaterial("rgb(122,115,102)"); // pedra das torres, um pouco mais escura
 const materialAmeia = setDefaultMaterial("rgb(160,152,138)"); // merlões (ameias) do topo das muralhas/torres
 const materialMadeira = setDefaultMaterial("rgb(92,61,33)"); // madeira: escadas
 const materialSeteira = setDefaultMaterial("rgb(15,15,15)"); // seteiras (aberturas escuras nas torres)
 
+/**
+ * Agrupa e organiza os meshes de uma construção (paredes, pisos e rampas)
+ * dentro de um THREE.Group posicionado e rotacionado na cena.
+ */
 export class Structure {
   constructor(scene, position = new THREE.Vector3(0, 0, 0), rotation = 0) {
     this.scene = scene;
@@ -16,6 +22,7 @@ export class Structure {
     this.walls = [];
     this.floors = [];
     this.ramps = [];
+    this.decor = []
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -37,8 +44,18 @@ export class Structure {
     this.ramps.push(ramp);
     this.group.add(ramp);
   }
+
+  addDecor(mesh) {
+    this.decor.push(mesh);
+    this.group.add(mesh);
+  }
 }
 
+/**
+ * Cria o modelo completo do Castelo de Bodiam: muralhas, torres de canto,
+ * torre de entrada (gate house), torre sul, ameias, seteiras e o interior
+ * com saguão, salas e escadas.
+ */
 export function createCastle(
   scene,
   position = new THREE.Vector3(0, 0, 0),
@@ -55,7 +72,9 @@ export function createCastle(
   const halfW = castleWidth / 2;
   const halfD = castleDepth / 2;
 
-  // --- FUNÇÕES AUXILIARES: ESTRUTURA BÁSICA ---
+  // ==========================================================
+  // HELPERS — Geometria básica (paredes e portas)
+  // ==========================================================
 
   function createWallSegment(
     width,
@@ -74,6 +93,41 @@ export function createCastle(
     return mesh;
   }
 
+  function createDoorColliders(
+  wallHeight,
+  thickness,
+  wallSpanWidth, // largura do trecho de parede onde a porta está inserida
+  doorWidth,
+  doorHeight,
+  posX,
+  posZ,
+  rotY = 0,
+) {
+  const sideWidth = (wallSpanWidth - doorWidth) / 2;
+
+  const parts = [
+    { dx: -(doorWidth / 2 + sideWidth / 2), w: sideWidth, h: wallHeight, dy: 0 }, // pilar esq.
+    { dx: (doorWidth / 2 + sideWidth / 2), w: sideWidth, h: wallHeight, dy: 0 },  // pilar dir.
+    { dx: 0, w: doorWidth, h: wallHeight - doorHeight, dy: doorHeight },         // verga
+  ];
+
+  for (const p of parts) {
+    if (p.w <= 0.01) continue; // evita geometria inválida
+
+    const worldX = posX + p.dx * Math.cos(rotY);
+    const worldZ = posZ - p.dx * Math.sin(rotY);
+
+    const geo = new THREE.BoxGeometry(p.w, p.h, thickness);
+    const mat = new THREE.MeshBasicMaterial({ visible: false });
+    const collider = new THREE.Mesh(geo, mat);
+    collider.position.set(worldX, p.dy + p.h / 2, worldZ);
+    collider.rotation.y = rotY;
+
+    castle.addWall(collider); // entra na colisão como parede sólida normal
+  }
+}
+
+  /** Parede reta com um único vão de porta em arco. */
   function createWallWithDoor(
     wallWidth,
     wallHeight,
@@ -109,16 +163,30 @@ export function createCastle(
 
     const extrudeSettings = { depth: thickness, bevelEnabled: false };
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    const mesh = new THREE.Mesh(geometry, mat);
-
     geometry.translate(0, 0, -thickness / 2);
+
+    const mesh = new THREE.Mesh(geometry, mat);
     mesh.position.set(posX, 0, posZ);
     mesh.rotation.y = rotY;
 
-    castle.addWall(mesh);
+    castle.addDecor(mesh);
+
+    createDoorColliders(
+      wallHeight,
+      thickness,
+      wallWidth,
+      doorWidth,
+      doorHeight,
+      posX,
+      posZ,
+      rotY,
+    );
     return mesh;
   }
 
+
+
+  /** Parede reta com múltiplos vãos de porta em arco (não usada no momento, mantida para reaproveitamento). */
   function createWallWithDoors(
     wallWidth,
     wallHeight,
@@ -166,6 +234,10 @@ export function createCastle(
     castle.addWall(mesh);
     return mesh;
   }
+
+  // ==========================================================
+  // HELPERS — Torres (ocas, formadas por segmentos de parede)
+  // ==========================================================
 
   function createHollowRoundTower(
     radius,
@@ -227,6 +299,11 @@ export function createCastle(
     );
   }
 
+  // ==========================================================
+  // HELPERS — Escadas
+  // ==========================================================
+
+  /** Cria uma escada de degraus sólidos mais uma rampa invisível de colisão/navegação. */
   function createStairs(
     width,
     totalHeight,
@@ -239,29 +316,26 @@ export function createCastle(
   ) {
     const stepHeight = totalHeight / numSteps;
     const stepDepth = totalDepth / numSteps;
+
     for (let i = 0; i < numSteps; i++) {
       const currentHeight = (i + 1) * stepHeight;
       const geo = new THREE.BoxGeometry(width, currentHeight, stepDepth);
       const mesh = new THREE.Mesh(geo, mat);
 
       const zPos = startZ + directionZ * (i * stepDepth + stepDepth / 2);
-
       const yPos = currentHeight / 2;
 
       mesh.position.set(startX, yPos, zPos);
-
       castle.addRamp(mesh);
     }
-    // Rampa
-   
-    // Quanto a rampa vai ultrapassar os degraus
-    const extension = 0.1;
-    // Ângulo da escada
+
+    // Rampa invisível, alinhada à inclinação da escada, usada como
+    // superfície plana de referência (ex.: para navegação/colisão)
+    const extension = 0.1; // quanto a rampa ultrapassa os degraus em cada ponta
     const angle = Math.atan2(totalHeight, totalDepth);
     const rampLength = Math.sqrt(
       totalDepth * totalDepth + totalHeight * totalHeight,
     );
-    // Comprimento da rampa + sobra nas duas pontas
     const rampLengthExtended = rampLength + extension * 2;
     const rampWidth = width;
     const rampThickness = 0.4;
@@ -283,16 +357,32 @@ export function createCastle(
     ramp.position.x = startX;
     ramp.position.z = startZ + directionZ * (totalDepth / 2);
     ramp.position.y = totalHeight / 2 + 0.08;
-    // Empurra a rampa para baixo,
-    // fazendo ela passar um pouco do primeiro degrau
+    // Empurra a rampa para baixo, fazendo-a passar um pouco do primeiro degrau
     ramp.position.z += (directionZ * extension) / 2;
     castle.addRamp(ramp);
   }
 
-  // --- FUNÇÕES AUXILIARES: AMEIAS (MERLÕES), SETEIRAS, TOPOS E FOSSO ---
-  // As ameias agora aparecem apenas no topo das torres (redondas e
-  // quadradas), em tamanho reduzido para um acabamento mais discreto e
-  // elegante. As muralhas retas ficam com o topo liso.
+  /** Recorte (Path) do vão da escada no piso superior, para uso com ExtrudeGeometry. */
+  function buildStairHole(stairX) {
+    const hole = new THREE.Path();
+    const holeXMin = stairX - stairWidth / 2 - 0.2;
+    const holeXMax = stairX + stairWidth / 2 + 0.2;
+    const holeZMin = stairStartZ - 0.3;
+    const holeZMax = stairStartZ + stairDepth + 0.3;
+
+    hole.moveTo(holeXMin, holeZMin);
+    hole.lineTo(holeXMax, holeZMin);
+    hole.lineTo(holeXMax, holeZMax);
+    hole.lineTo(holeXMin, holeZMax);
+    hole.closePath();
+    return hole;
+  }
+
+  // ==========================================================
+  // HELPERS — Ameias (merlões)
+  // Aparecem apenas no topo das torres (redondas e quadradas);
+  // as muralhas retas ficam com o topo liso.
+  // ==========================================================
 
   function createBattlementsAlongX(
     length,
@@ -309,6 +399,7 @@ export function createCastle(
     const count = Math.max(1, Math.floor((length + gap) / step));
     const usedLength = count * step - gap;
     const startX = posX - usedLength / 2 + merlonW / 2;
+
     for (let i = 0; i < count; i++) {
       const x = startX + i * step;
       const geo = new THREE.BoxGeometry(merlonW, merlonH, merlonDepth);
@@ -333,6 +424,7 @@ export function createCastle(
     const count = Math.max(1, Math.floor((length + gap) / step));
     const usedLength = count * step - gap;
     const startZ = posZ - usedLength / 2 + merlonW / 2;
+
     for (let i = 0; i < count; i++) {
       const z = startZ + i * step;
       const geo = new THREE.BoxGeometry(merlonDepth, merlonH, merlonW);
@@ -352,6 +444,7 @@ export function createCastle(
   ) {
     const angleStep = (Math.PI * 2) / segments;
     const merlonWidth = 2 * radius * Math.tan(angleStep / 2) * 0.85;
+
     for (let i = 0; i < segments; i += 2) {
       const angle = i * angleStep;
       const x = posX + Math.cos(angle) * radius;
@@ -378,6 +471,10 @@ export function createCastle(
     createBattlementsAlongZ(sizeZ, posX + sizeX / 2, posZ, topY, mat);
   }
 
+  // ==========================================================
+  // HELPERS — Topos das torres (caps)
+  // ==========================================================
+
   function createRoundCap(radius, topY, posX, posZ, mat = materialTorre) {
     const geo = new THREE.CylinderGeometry(radius, radius, 0.4, 16);
     const mesh = new THREE.Mesh(geo, mat);
@@ -398,6 +495,10 @@ export function createCastle(
     mesh.position.set(posX, topY + 0.2, posZ);
     castle.addFloor(mesh);
   }
+
+  // ==========================================================
+  // HELPERS — Seteiras (arrow slits)
+  // ==========================================================
 
   function createArrowSlit(posX, posZ, rotY, midY, mat = materialSeteira) {
     const geo = new THREE.BoxGeometry(0.3, 2.2, 0.3);
@@ -423,9 +524,9 @@ export function createCastle(
     }
   }
 
-  // ==========================================
+  // ==========================================================
   // 1. TORRES CIRCULARES OCAS (CANTOS)
-  // ==========================================
+  // ==========================================================
   const cornerRadius = 4.5;
   const cornerHeight = 18.0;
 
@@ -442,9 +543,9 @@ export function createCastle(
     addRoundTowerSlits(cornerRadius, cornerHeight * 0.55, cx, cz, 4);
   }
 
-  // ==========================================
+  // ==========================================================
   // 2. MURALHA OESTE
-  // ==========================================
+  // ==========================================================
   const westTowerSize = 6.0;
   const westTowerHeight = 15.0;
 
@@ -476,9 +577,9 @@ export function createCastle(
     createWallSegment(wallThickness, len2, wallHeight, -halfW, posZ2);
   }
 
-  // ==========================================
+  // ==========================================================
   // 3. MURALHA LESTE
-  // ==========================================
+  // ==========================================================
   const eastTowerSize = 6.0;
   const eastTowerHeight = 15.0;
   const offsetDistance = 3.5;
@@ -535,9 +636,9 @@ export function createCastle(
 
   createWallSegment(wallThickness, 12.0, wallHeight, halfW, halfD - 10.5);
 
-  // ==========================================
-  // 4. FACHADA NORTE E ENTRADA PRINCIPAL
-  // ==========================================
+  // ==========================================================
+  // 4. FACHADA NORTE E ENTRADA PRINCIPAL (GATE HOUSE)
+  // ==========================================================
   const gateTowerW = 5.0;
   const gateTowerD = 7.5;
   const gateTowerH = 17.0;
@@ -627,9 +728,9 @@ export function createCastle(
     );
   }
 
-  // ==========================================
+  // ==========================================================
   // 5. MURALHA SUL & TORRE
-  // ==========================================
+  // ==========================================================
   const southTowerW = 6.5;
   const southTowerD = 5.5;
   const southTowerH = 15.0;
@@ -662,9 +763,9 @@ export function createCastle(
     );
   }
 
-  // ==========================================
-  // 6. INTERIOR: ENTRADA, SALAS, PISO SUPERIOR E ESCADAS
-  // ==========================================
+  // ==========================================================
+  // 6. INTERIOR: SAGUÃO, SALAS, PISO SUPERIOR E ESCADAS
+  // ==========================================================
 
   const secondFloorHeight = 6.0; // altura do térreo / piso do andar superior
   const upperWallHeight = wallHeight - secondFloorHeight; // altura das salas do andar superior
@@ -678,8 +779,8 @@ export function createCastle(
   const interiorDoorWidth = 2.5;
   const interiorDoorHeight = 4.5;
 
-  // Configuração das escadas (uma por sala, simétricas, posicionadas nos
-  // fundos de cada sala, junto à muralha sul)
+  // Escadas: uma por sala, simétricas, posicionadas nos fundos de cada
+  // sala, junto à muralha sul
   const stairWidth = 2.5;
   const stairDepth = 10.0;
   const numSteps = 32;
@@ -689,27 +790,11 @@ export function createCastle(
   const stairX_W = -innerHalfW + stairWidth / 2 + 1.5; // sala oeste
   const stairX_E = innerHalfW - stairWidth / 2 - 1.5; // sala leste
 
-
-  function buildStairHole(stairX) {
-    const hole = new THREE.Path();
-    const holeXMin = stairX - stairWidth / 2 - 0.2;
-    const holeXMax = stairX + stairWidth / 2 + 0.2;
-    const holeZMin = stairStartZ - 0.3;
-    const holeZMax = stairStartZ + stairDepth + 0.3;
-
-    hole.moveTo(holeXMin, holeZMin);
-    hole.lineTo(holeXMax, holeZMin);
-    hole.lineTo(holeXMax, holeZMax);
-    hole.lineTo(holeXMin, holeZMax);
-    hole.closePath();
-    return hole;
-  }
-
   return castle;
 }
 
 export function createGround(scene) {
-  let plane = createGroundPlaneXZ(160, 160);
+  const plane = createGroundPlaneXZ(160, 160);
   scene.add(plane);
   return plane;
 }

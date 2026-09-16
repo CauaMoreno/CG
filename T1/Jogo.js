@@ -161,13 +161,13 @@ function moveAnimate(delta) {
     cylinderResult.position.z
   );
 
-  const positionBeforeWallCollision = controls.object.position.clone();
+  const targetPositionAfterCylinder = controls.object.position.clone();
 
   // Colisão Eixo X
   controls.object.position.set(
-    positionBeforeWallCollision.x,
+    targetPositionAfterCylinder.x,
     oldPosition.y,
-    positionBeforeWallCollision.z
+    oldPosition.z
   );
 
   if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
@@ -179,7 +179,7 @@ function moveAnimate(delta) {
   controls.object.position.set(
     xAfterCollision,
     oldPosition.y,
-    positionBeforeWallCollision.z
+    targetPositionAfterCylinder.z
   );
 
   if (collisionSystem.checkWallCollision(controls.object.position, walls)) {

@@ -678,52 +678,6 @@ export function createCastle(
   const interiorDoorWidth = 2.5;
   const interiorDoorHeight = 4.5;
 
-  // Parede que separa o saguão das duas salas, com uma porta para cada lado
-  createWallWithDoors(
-    2 * innerHalfW,
-    secondFloorHeight,
-    partitionThickness,
-    [
-      {
-        offsetX: -innerHalfW / 2,
-        width: interiorDoorWidth,
-        height: interiorDoorHeight,
-      }, // porta da sala esquerda (oeste)
-      {
-        offsetX: innerHalfW / 2,
-        width: interiorDoorWidth,
-        height: interiorDoorHeight,
-      }, // porta da sala direita (leste)
-    ],
-    0,
-    hallSouthZ,
-  );
-
-  // Parede central que separa a sala oeste da sala leste no térreo (sem porta:
-  // no térreo as duas salas só se comunicam através do saguão)
-  createWallSegment(
-    partitionThickness,
-    innerHalfD - hallSouthZ,
-    secondFloorHeight,
-    0,
-    (hallSouthZ + innerHalfD) / 2,
-  );
-
-  // Parede central do andar superior: mesma divisão esquerda/direita, mas
-  // agora ao longo de toda a profundidade do castelo e com uma porta no
-  // meio ligando as duas grandes salas de cima.
-  createWallWithDoors(
-    2 * innerHalfD,
-    upperWallHeight,
-    partitionThickness,
-    [{ offsetX: 0, width: interiorDoorWidth, height: interiorDoorHeight }],
-    0,
-    0,
-    Math.PI / 2,
-    materialMuralha,
-    secondFloorHeight,
-  );
-
   // Configuração das escadas (uma por sala, simétricas, posicionadas nos
   // fundos de cada sala, junto à muralha sul)
   const stairWidth = 2.5;
@@ -735,29 +689,7 @@ export function createCastle(
   const stairX_W = -innerHalfW + stairWidth / 2 + 1.5; // sala oeste
   const stairX_E = innerHalfW - stairWidth / 2 - 1.5; // sala leste
 
-  // 1. Desenha o perfil completo do piso interno (2º andar)
-  const floorShape = new THREE.Shape();
 
-  floorShape.moveTo(-innerHalfW, -innerHalfD);
-  floorShape.lineTo(innerHalfW, -innerHalfD);
-
-  // Contorno do desnível da muralha Leste
-  floorShape.lineTo(innerHalfW, -halfD + 12.5 - wallThickness / 2);
-  floorShape.lineTo(
-    innerHalfW + offsetDistance,
-    -halfD + 12.5 - wallThickness / 2,
-  );
-  floorShape.lineTo(
-    innerHalfW + offsetDistance,
-    -halfD + 21.5 + wallThickness / 2,
-  );
-  floorShape.lineTo(innerHalfW, -halfD + 21.5 + wallThickness / 2);
-
-  floorShape.lineTo(innerHalfW, innerHalfD);
-  floorShape.lineTo(-innerHalfW, innerHalfD);
-  floorShape.closePath();
-
-  // 2. Furos das duas escadas no piso, um por ala, para permitir a passagem
   function buildStairHole(stairX) {
     const hole = new THREE.Path();
     const holeXMin = stairX - stairWidth / 2 - 0.2;
@@ -772,41 +704,6 @@ export function createCastle(
     hole.closePath();
     return hole;
   }
-
-  floorShape.holes.push(buildStairHole(stairX_W));
-  floorShape.holes.push(buildStairHole(stairX_E));
-
-  // 3. Extrusão do piso completo
-  const extrudeSettings2 = { depth: floorThickness, bevelEnabled: false };
-  const secondFloorGeo = new THREE.ExtrudeGeometry(
-    floorShape,
-    extrudeSettings2,
-  );
-  secondFloorGeo.rotateX(Math.PI / 2); // Rotaciona para alinhar ao plano horizontal XZ
-
-  const secondFloorMesh = new THREE.Mesh(secondFloorGeo, materialMuralha);
-  secondFloorMesh.position.set(0, secondFloorHeight, 0);
-  castle.addFloor(secondFloorMesh);
-
-  // 4. Criação das duas escadas, uma em cada sala, nos fundos (junto à muralha sul)
-  createStairs(
-    stairWidth,
-    secondFloorHeight,
-    stairDepth,
-    numSteps,
-    stairX_W,
-    stairStartZ,
-    1,
-  );
-  createStairs(
-    stairWidth,
-    secondFloorHeight,
-    stairDepth,
-    numSteps,
-    stairX_E,
-    stairStartZ,
-    1,
-  );
 
   return castle;
 }

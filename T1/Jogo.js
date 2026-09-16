@@ -237,10 +237,6 @@ window.addEventListener(
   false
 );
 
-// Criação do Cenário
-let axesHelper = new THREE.AxesHelper(12);
-scene.add(axesHelper);
-
 ground = createGround(scene);
 castle = createCastle(scene);
 walls = castle.walls;

@@ -39,10 +39,11 @@ camera1 = new THREE.PerspectiveCamera(
   1000
 );
 camera1.position.set(0, 0, -50);
+camera1.lookAt(new THREE.Vector3(0, 0, 0));
 
 // Câmera 2 (Modo Espectador / Órbita)
 camera2 = new THREE.PerspectiveCamera(
-  75,
+  60,
   window.innerWidth / window.innerHeight,
   0.1,
   1000

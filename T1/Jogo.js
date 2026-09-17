@@ -67,11 +67,12 @@ renderer.domElement.addEventListener("click", function () {
 });
 
 // Controle de Movimentação
-const speed = 10;
+let speed = 10;
 let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let running = false;
 
 window.addEventListener("keydown", function (event) {
   movementControls(event.keyCode, true);
@@ -103,6 +104,10 @@ function movementControls(key, value) {
       moveRight = value;
       break;
 
+    case 16: // Shift
+      running = value;
+      break;
+
     case 67: // Tecla C
       if (value) {
         if (mode === 2) {
@@ -130,6 +135,12 @@ function movementControls(key, value) {
 
 function moveAnimate(delta) {
   if (mode !== 1) return;
+
+  if (running) {
+    speed = 20;
+  } else {
+    speed = 10;
+  }
 
   const oldPosition = controls.object.position.clone();
 

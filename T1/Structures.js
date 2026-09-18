@@ -19,6 +19,7 @@ export class Structure {
     this.ramps = [];
     this.decor = [];
     this.cylinders = [];
+    this.doors = [];
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -49,6 +50,29 @@ export class Structure {
   addCylinderCollider(cylinder) {
     this.cylinders.push(cylinder);
   }
+
+  addDoor(pivots, options = {}) {
+    const {
+      triggerDistance = 6,
+      openSpeed = Math.PI * 0.8,
+    } = options; 
+
+    const door = {
+      pivots: pivots.map((p) => ({
+        group: p.group,
+        closedAngle: 0,
+        openAngle: p.openAngle,
+      })), //salva angulo de abertura e qua pivo do grupo
+      triggerDistance,
+      openSpeed,
+      isOpen: false,
+    };
+
+    this.doors.push(door);
+    return door;
+  }
+
+
 }
 
 export function createCastle(
@@ -248,6 +272,14 @@ export function createCastle(
   group.add(leftPivot);
   group.add(rightPivot);
   group.rotation.y = rotY;
+
+  castle.addDoor(
+    [
+      { group: leftPivot, openAngle: Math.PI / 2 },
+      { group: rightPivot, openAngle: -Math.PI / 2 },
+    ],
+    { triggerDistance: 6, openSpeed: Math.PI * 0.8 }
+  );
 
   castle.addDecor(group);
 

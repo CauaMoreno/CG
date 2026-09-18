@@ -87,11 +87,19 @@ export function createCastle(
   // FUNÇÕES AUXILIARES
   // ==========================================================
 
-  function createWall(width, depth, height, posX, posZ, rotY = 0, mat = materialMuralha) {
+  function createWall(
+    width,
+    depth,
+    height,
+    posX,
+    posZ,
+    rotY = 0,
+    mat = materialMuralha,
+  ) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, height / 2, posZ);
-    mesh.rotation.y = rotY*(Math.PI / 180);
+    mesh.rotation.y = rotY * (Math.PI / 180);
 
     // Adiciona ameias
     const ameiaHeight = 0.8;
@@ -100,30 +108,56 @@ export function createCastle(
     const gap = width / ameiasQTD;
 
     for (let i = 0; i < ameiasQTD; i++) {
-      const x = -width/2 + (i + 0.5) * gap;
-      const geoAmeia = new THREE.BoxGeometry(gap * 0.75, ameiaHeight, ameiaDepth);
+      const x = -width / 2 + (i + 0.5) * gap;
+      const geoAmeia = new THREE.BoxGeometry(
+        gap * 0.75,
+        ameiaHeight,
+        ameiaDepth,
+      );
       const meshAmeia = new THREE.Mesh(geoAmeia, mat);
-      meshAmeia.position.set(x, (ameiaHeight + height)/2, 0);
+      meshAmeia.position.set(x, (ameiaHeight + height) / 2, 0);
       mesh.add(meshAmeia);
     }
-      
+
     castle.addWall(mesh);
     return mesh;
   }
 
-  function createInnerWall(width, depth, height, posX, posZ, rotY = 0, mat = materialMuralha) {
+  function createInnerWall(
+    width,
+    depth,
+    height,
+    posX,
+    posZ,
+    rotY = 0,
+    mat = materialMuralha,
+  ) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, height / 2, posZ);
-    mesh.rotation.y = rotY*(Math.PI / 180);
+    mesh.rotation.y = rotY * (Math.PI / 180);
   }
 
-  function createDoorColliders(wallHeight, thickness, wallSpanWidth, doorWidth, doorHeight, posX, posZ, rotY = 0) {
+  function createDoorColliders(
+    wallHeight,
+    thickness,
+    wallSpanWidth,
+    doorWidth,
+    doorHeight,
+    posX,
+    posZ,
+    rotY = 0,
+  ) {
     const sideWidth = (wallSpanWidth - doorWidth) / 2;
 
     const parts = [
-      { dx: -(doorWidth / 2 + sideWidth / 2), w: sideWidth, h: wallHeight, dy: 0 },
-      { dx: (doorWidth / 2 + sideWidth / 2), w: sideWidth, h: wallHeight, dy: 0 },
+      {
+        dx: -(doorWidth / 2 + sideWidth / 2),
+        w: sideWidth,
+        h: wallHeight,
+        dy: 0,
+      },
+      { dx: doorWidth / 2 + sideWidth / 2, w: sideWidth, h: wallHeight, dy: 0 },
       { dx: 0, w: doorWidth, h: wallHeight - doorHeight, dy: doorHeight },
     ];
 
@@ -142,6 +176,83 @@ export function createCastle(
       castle.addWall(collider);
     }
   }
+
+  function createFrontDoor(
+  width,
+  height,
+  thickness,
+  posX,
+  posZ,
+  rotY = 0,
+  mat = materialMadeira
+) {
+  const group = new THREE.Group();
+
+  const halfWidth = width / 2;
+  const straightHeight = height - halfWidth;
+
+  // FOLHA ESQUERDA
+  // Local: x=0 é a dobradiça (borda externa), x=halfWidth é o centro
+  const leftShape = new THREE.Shape();
+  leftShape.moveTo(0, 0);                    // base da dobradiça
+  leftShape.lineTo(0, straightHeight);       // sobe reto até a linha de arranque do arco
+  leftShape.absarc(
+    halfWidth, straightHeight,               // centro do arco = ponto central da porta, na altura de arranque
+    halfWidth,                               // raio = metade da largura da folha
+    Math.PI, Math.PI / 2,                    // varre da dobradiça até o topo central
+    true                                     // sentido horário
+  );
+  leftShape.lineTo(halfWidth, 0);            // desce reto no corte central até a base
+  leftShape.lineTo(0, 0);                    // fecha na dobradiça
+
+  const leftGeometry = new THREE.ExtrudeGeometry(leftShape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 16
+  });
+  leftGeometry.translate(0, 0, -thickness / 2);
+  const leftDoor = new THREE.Mesh(leftGeometry, mat);
+
+  // FOLHA DIREITA (espelhada)
+  // Local: x=0 é a dobradiça, x=-halfWidth é o centro
+  const rightShape = new THREE.Shape();
+  rightShape.moveTo(0, 0);
+  rightShape.lineTo(0, straightHeight);
+  rightShape.absarc(
+    -halfWidth, straightHeight,
+    halfWidth,
+    0, Math.PI / 2,
+    false                                    // sentido anti-horário (espelhado)
+  );
+  rightShape.lineTo(-halfWidth, 0);
+  rightShape.lineTo(0, 0);
+
+  const rightGeometry = new THREE.ExtrudeGeometry(rightShape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 16
+  });
+  rightGeometry.translate(0, 0, -thickness / 2);
+  const rightDoor = new THREE.Mesh(rightGeometry, mat);
+
+  const leftPivot = new THREE.Group();
+  leftPivot.position.set(posX - halfWidth, 0, posZ);
+  leftDoor.position.set(0, 0, 0);
+  leftPivot.add(leftDoor);
+
+  const rightPivot = new THREE.Group();
+  rightPivot.position.set(posX + halfWidth, 0, posZ);
+  rightDoor.position.set(0, 0, 0);
+  rightPivot.add(rightDoor);
+
+  group.add(leftPivot);
+  group.add(rightPivot);
+  group.rotation.y = rotY;
+
+  castle.addDecor(group);
+
+  return { group, leftPivot, rightPivot, position: new THREE.Vector3(posX, 0, posZ), width, height };
+}
 
   function createWallWithDoor(
     wallWidth,
@@ -224,7 +335,12 @@ export function createCastle(
     castle.addDecor(wall);
 
     // Cria o topo da torre
-    const geoTop = new THREE.CylinderGeometry(outerRadius, outerRadius, depth, 16);
+    const geoTop = new THREE.CylinderGeometry(
+      outerRadius,
+      outerRadius,
+      depth,
+      16,
+    );
     const top = new THREE.Mesh(geoTop, mat);
     top.position.set(0, height, 0);
     castle.addFloor(top);
@@ -238,10 +354,14 @@ export function createCastle(
 
     for (let i = 0; i < ameiasQTD; i++) {
       const angle = (i / ameiasQTD) * Math.PI * 2;
-      const x = Math.cos(angle) * (outerRadius-0.65);
-      const z = Math.sin(angle) * (outerRadius-0.65);
+      const x = Math.cos(angle) * (outerRadius - 0.65);
+      const z = Math.sin(angle) * (outerRadius - 0.65);
 
-      const geoAmeia = new THREE.BoxGeometry(ameiaGap * 0.75, ameiaHeight, ameiaDepth);
+      const geoAmeia = new THREE.BoxGeometry(
+        ameiaGap * 0.75,
+        ameiaHeight,
+        ameiaDepth,
+      );
       const meshAmeia = new THREE.Mesh(geoAmeia, mat);
       meshAmeia.position.set(x, ameiaHeight, z);
       meshAmeia.rotation.y = -angle + Math.PI / 2;
@@ -276,19 +396,27 @@ export function createCastle(
     createWall(sizeZ, depth, height, posX + halfX - halfD, posZ, 90, mat);
     createWall(sizeZ, depth, height, posX - halfX + halfD, posZ, 90, mat);
 
-
     // Adiciona o topo da torre
     const topGeo = new THREE.BoxGeometry(sizeX, depth, sizeZ);
     const top = new THREE.Mesh(topGeo, mat);
-    top.position.set(posX, height-depth, posZ);
+    top.position.set(posX, height - depth, posZ);
     castle.addFloor(top);
   }
 
-  function createPlatform(width, depth, height, posX, posY, posZ, rotY, mat = materialMadeira) {
+  function createPlatform(
+    width,
+    depth,
+    height,
+    posX,
+    posY,
+    posZ,
+    rotY,
+    mat = materialMadeira,
+  ) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, posY, posZ);
-    mesh.rotation.y = rotY*(Math.PI / 180);
+    mesh.rotation.y = rotY * (Math.PI / 180);
     castle.addFloor(mesh);
   }
 
@@ -355,7 +483,14 @@ export function createCastle(
     castle.addWall(mesh);
   }
 
-  function addRoundTowerSlits(radius, midY, posX, posZ, count = 4, mat = materialSeteira) {
+  function addRoundTowerSlits(
+    radius,
+    midY,
+    posX,
+    posZ,
+    count = 4,
+    mat = materialSeteira,
+  ) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.PI / count;
       const x = posX + Math.cos(angle) * (radius + 0.1);
@@ -385,30 +520,48 @@ export function createCastle(
   // 2. MURALHA OESTE
   // ==========================================================
 
-  const posZ1 = -halfD/2;
+  const posZ1 = -halfD / 2;
   const width = (castleDepth - sTowerSize) / 2 - cornerRadius;
   createWall(width, wallThickness, wallHeight, -halfW, posZ1, 90);
-  createPlatform(width, platformDepth, platformHeight, platformDepth/2-halfW, wallHeight-2, posZ1, 90);
-
-  createSquareTower(
-    sTowerSize,
-    sTowerSize,
-    sTowerHeight,
-    -halfW,
-    0,
+  createPlatform(
+    width,
+    platformDepth,
+    platformHeight,
+    platformDepth / 2 - halfW,
+    wallHeight - 2,
+    posZ1,
+    90,
   );
 
-  const posZ2 = halfD/2;
+  createSquareTower(sTowerSize, sTowerSize, sTowerHeight, -halfW, 0);
+
+  const posZ2 = halfD / 2;
   createWall(width, wallThickness, wallHeight, -halfW, posZ2, 90);
-  createPlatform(width, platformDepth, platformHeight, platformDepth/2-halfW, wallHeight-2, posZ2, 90);
+  createPlatform(
+    width,
+    platformDepth,
+    platformHeight,
+    platformDepth / 2 - halfW,
+    wallHeight - 2,
+    posZ2,
+    90,
+  );
 
   // ==========================================================
   // 3. MURALHA LESTE
   // ==========================================================
   const offsetDistance = 3;
 
-  createWall(8.0, wallThickness, wallHeight, halfW, 8.5-halfD, 90);
-  createPlatform(10.0, platformDepth, platformHeight, halfW-platformDepth/2, wallHeight-2,9.5-halfD, 90);
+  createWall(8.0, wallThickness, wallHeight, halfW, 8.5 - halfD, 90);
+  createPlatform(
+    10.0,
+    platformDepth,
+    platformHeight,
+    halfW - platformDepth / 2,
+    wallHeight - 2,
+    9.5 - halfD,
+    90,
+  );
 
   createWall(
     offsetDistance + wallThickness,
@@ -419,8 +572,15 @@ export function createCastle(
     0,
     materialMuralha,
   );
-  createPlatform(offsetDistance + wallThickness, platformDepth, platformHeight, halfW +offsetDistance /2, wallHeight-2,platformDepth/2-halfD + 12.5, 0);
-
+  createPlatform(
+    offsetDistance + wallThickness,
+    platformDepth,
+    platformHeight,
+    halfW + offsetDistance / 2,
+    wallHeight - 2,
+    platformDepth / 2 - halfD + 12.5,
+    0,
+  );
 
   createWall(
     12,
@@ -431,20 +591,54 @@ export function createCastle(
     90,
     materialMuralha,
   );
-  createPlatform(12.0, platformDepth, platformHeight, halfW + offsetDistance-platformDepth/2, wallHeight-2,-halfD + 18.5, 90);
-
-  createPlatform(8.0, platformDepth, platformHeight, halfW-2, wallHeight-2,-platformDepth/2-halfD+24.5, 0);
-  createSquareTower(
-    sTowerSize,
-    sTowerSize,
-    sTowerHeight,
-    halfW,
-    5.0,
+  createPlatform(
+    12.0,
+    platformDepth,
+    platformHeight,
+    halfW + offsetDistance - platformDepth / 2,
+    wallHeight - 2,
+    -halfD + 18.5,
+    90,
   );
-  createPlatform(12.0, platformDepth, platformHeight, halfW-sTowerSize/2-platformDepth/2, wallHeight-2,-halfD + 28.5, 90);
+
+  createPlatform(
+    8.0,
+    platformDepth,
+    platformHeight,
+    halfW - 2,
+    wallHeight - 2,
+    -platformDepth / 2 - halfD + 24.5,
+    0,
+  );
+  createSquareTower(sTowerSize, sTowerSize, sTowerHeight, halfW, 5.0);
+  createPlatform(
+    12.0,
+    platformDepth,
+    platformHeight,
+    halfW - sTowerSize / 2 - platformDepth / 2,
+    wallHeight - 2,
+    -halfD + 28.5,
+    90,
+  );
   createWall(10.0, wallThickness, wallHeight, halfW, halfD - 9, 90);
-  createPlatform(sTowerSize/2, platformDepth, platformHeight, halfW-sTowerSize/2+0.5, wallHeight-2,-platformDepth/2-halfD+35.5, 0);
-  createPlatform(10.0, platformDepth, platformHeight, halfW-platformDepth/2, wallHeight-2,halfD - 9, 90);
+  createPlatform(
+    sTowerSize / 2,
+    platformDepth,
+    platformHeight,
+    halfW - sTowerSize / 2 + 0.5,
+    wallHeight - 2,
+    -platformDepth / 2 - halfD + 35.5,
+    0,
+  );
+  createPlatform(
+    10.0,
+    platformDepth,
+    platformHeight,
+    halfW - platformDepth / 2,
+    wallHeight - 2,
+    halfD - 9,
+    90,
+  );
 
   // ==========================================================
   // 4. FACHADA NORTE E ENTRADA PRINCIPAL
@@ -455,20 +649,23 @@ export function createCastle(
   const gateOpening = 5.0;
   const doorHeight = 5;
 
-  const northSegmentLength = (castleWidth - (gateTowerW * 2 + gateOpening)) / 2 - cornerRadius;
+  const northSegmentLength =
+    (castleWidth - (gateTowerW * 2 + gateOpening)) / 2 - cornerRadius;
 
   const posX1 = -halfW + cornerRadius + northSegmentLength / 2;
-  createWall( northSegmentLength, wallThickness, wallHeight, posX1, -halfD);
-  createPlatform(northSegmentLength, platformDepth, platformHeight, posX1, wallHeight-2, platformDepth/2-halfD, 0);
+  createWall(northSegmentLength, wallThickness, wallHeight, posX1, -halfD);
+  createPlatform(
+    northSegmentLength,
+    platformDepth,
+    platformHeight,
+    posX1,
+    wallHeight - 2,
+    platformDepth / 2 - halfD,
+    0,
+  );
 
   const gateTowerLeftX = -(gateOpening / 2 + gateTowerW / 2);
-  createSquareTower(
-    gateTowerW,
-    gateTowerD,
-    gateTowerH,
-    gateTowerLeftX,
-    -halfD,
-  );
+  createSquareTower(gateTowerW, gateTowerD, gateTowerH, gateTowerLeftX, -halfD);
 
   createArrowSlit(
     gateTowerLeftX,
@@ -480,7 +677,7 @@ export function createCastle(
   createWallWithDoor(
     gateOpening,
     gateTowerH - 2,
-    wallThickness*3,
+    wallThickness * 3,
     gateOpening - 1,
     doorHeight,
     0,
@@ -488,6 +685,14 @@ export function createCastle(
     0,
     materialMuralha,
   );
+  createFrontDoor(  
+    gateOpening - 1,
+  doorHeight,
+  0.3,
+  0,
+  -halfD,
+  0
+);
 
   const gateTowerRightX = gateOpening / 2 + gateTowerW / 2;
   createSquareTower(
@@ -505,11 +710,17 @@ export function createCastle(
     gateTowerH * 0.55,
   );
 
-
   const posX2 = halfW - cornerRadius - northSegmentLength / 2;
   createWall(northSegmentLength, wallThickness, wallHeight, posX2, -halfD);
-  createPlatform(northSegmentLength, platformDepth, platformHeight, posX2, wallHeight-2, platformDepth/2-halfD, 0);
-
+  createPlatform(
+    northSegmentLength,
+    platformDepth,
+    platformHeight,
+    posX2,
+    wallHeight - 2,
+    platformDepth / 2 - halfD,
+    0,
+  );
 
   // ==========================================================
   // 5. MURALHA SUL & TORRE
@@ -517,16 +728,31 @@ export function createCastle(
 
   const southSegmentLength = (castleWidth - sTowerSize) / 2 - cornerRadius;
 
-
   const posX3 = -halfW + cornerRadius + southSegmentLength / 2;
   createWall(southSegmentLength, wallThickness, wallHeight, posX3, halfD);
-  createPlatform(southSegmentLength, platformDepth, platformHeight, posX3, wallHeight-2, halfD-platformDepth/2, 0);
+  createPlatform(
+    southSegmentLength,
+    platformDepth,
+    platformHeight,
+    posX3,
+    wallHeight - 2,
+    halfD - platformDepth / 2,
+    0,
+  );
 
   createSquareTower(sTowerSize, sTowerSize, sTowerHeight, 0, halfD);
 
   const posX4 = halfW - cornerRadius - southSegmentLength / 2;
   createWall(southSegmentLength, wallThickness, wallHeight, posX4, halfD);
-  createPlatform(southSegmentLength, platformDepth, platformHeight, posX4, wallHeight-2, halfD-platformDepth/2, 0);
+  createPlatform(
+    southSegmentLength,
+    platformDepth,
+    platformHeight,
+    posX4,
+    wallHeight - 2,
+    halfD - platformDepth / 2,
+    0,
+  );
 
   return castle;
 }

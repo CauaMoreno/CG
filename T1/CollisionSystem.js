@@ -114,20 +114,52 @@ export class CollisionSystem {
     const ramps = castle.ramps;
     const cylinders = castle.cylinders;
 
-    const targetPosition = controls.object.position.clone();
+    this.applyRampSlideMovement(controls, oldPosition);
+    this.resolveCylinderCollision(controls, oldPosition, cylinders);
+    this.resolveWallCollision(controls, oldPosition, walls);
 
-    let movement = new THREE.Vector3(
+    const { surfaceHeight, surfaceType, ramp } = this.detectSurface(
+      controls.object.position,
+      floors,
+      ramps,
+    );
+
+    if (surfaceType === "ramp" && this.isGrounded) {
+      this.snapToRamp(controls, ramp);
+      return;
+    }
+
+    this.resolveVerticalMovement(
+      controls,
+      delta,
+      surfaceHeight,
+      surfaceType,
+      ramp,
+    );
+  }
+
+
+   // Se o jogador está sobre uma rampa, projeta o movimento planar
+   // (X/Z) sobre o plano inclinado, em vez de deixá-lo "flutuar" reto.
+   
+  applyRampSlideMovement(controls, oldPosition) {
+    if (!this.isGrounded || this.currentRamp === null) return;
+
+    const targetPosition = controls.object.position.clone();
+    const movement = new THREE.Vector3(
       targetPosition.x - oldPosition.x,
       0,
       targetPosition.z - oldPosition.z,
-    );
+    ).projectOnPlane(this.currentRamp.normal);
 
-    if (this.isGrounded && this.currentRamp !== null) {
-      movement = movement.clone().projectOnPlane(this.currentRamp.normal);
-      controls.object.position.copy(oldPosition);
-      controls.object.position.add(movement);
-    }
+    controls.object.position.copy(oldPosition);
+    controls.object.position.add(movement);
+  }
 
+   // Empurra o jogador para fora de torres/colunas cilíndricas.
+   // Mantém a altura (Y) inalterada — só resolve X/Z.
+   
+  resolveCylinderCollision(controls, oldPosition, cylinders) {
     const cylinderResult = this.checkCylinderCollision(
       controls.object.position,
       cylinders,
@@ -137,7 +169,10 @@ export class CollisionSystem {
       oldPosition.y,
       cylinderResult.position.z,
     );
+  }
 
+   //Testa e resolve colisão contra paredes, eixo por eixo (X depois Z),
+  resolveWallCollision(controls, oldPosition, walls) {
     const targetPositionAfterCylinder = controls.object.position.clone();
 
     // Colisão Eixo X
@@ -146,7 +181,6 @@ export class CollisionSystem {
       oldPosition.y,
       oldPosition.z,
     );
-
     if (this.checkWallCollision(controls.object.position, walls)) {
       controls.object.position.x = oldPosition.x;
     }
@@ -158,13 +192,16 @@ export class CollisionSystem {
       oldPosition.y,
       targetPositionAfterCylinder.z,
     );
-
     if (this.checkWallCollision(controls.object.position, walls)) {
       controls.object.position.z = oldPosition.z;
     }
+  }
 
-    const groundHeight = this.checkGround(controls.object.position, floors);
-    const ramp = this.checkRamp(controls.object.position, ramps);
+   //Verifica chão e rampa na posição atual e decide qual "vence"
+   //(a de maior altura, para não afundar sob uma rampa quando há chão embaixo).
+  detectSurface(position, floors, ramps) {
+    const groundHeight = this.checkGround(position, floors);
+    const ramp = this.checkRamp(position, ramps);
 
     let surfaceHeight = null;
     let surfaceType = null;
@@ -182,21 +219,27 @@ export class CollisionSystem {
       surfaceType = "ramp";
     }
 
-    if (surfaceType === "ramp" && this.isGrounded) {
-      controls.object.position.y = ramp.height;
-      this.verticalVelocity = 0;
-      this.currentRamp = ramp;
-      return;
-    }
+    return { surfaceHeight, surfaceType, ramp };
+  }
+  
+   //Gruda o jogador na altura da rampa quando ele já está apoiado nela   
+  snapToRamp(controls, ramp) {
+    controls.object.position.y = ramp.height;
+    this.verticalVelocity = 0;
+    this.currentRamp = ramp;
+  }
 
+  // Aplica gravidade e resolve aterrissagem em chão/rampa.
+  resolveVerticalMovement(controls, delta, surfaceHeight, surfaceType, ramp) {
     this.verticalVelocity -= this.gravity * delta;
     controls.object.position.y += this.verticalVelocity * delta;
 
-    if (
+    const hasLanded =
       surfaceHeight !== null &&
       controls.object.position.y <= surfaceHeight &&
-      this.verticalVelocity <= 0
-    ) {
+      this.verticalVelocity <= 0;
+
+    if (hasLanded) {
       controls.object.position.y = surfaceHeight;
       this.verticalVelocity = 0;
       this.isGrounded = true;

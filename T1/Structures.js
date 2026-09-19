@@ -286,8 +286,8 @@ export function createCastle(
 
     castle.addDoor(
       [
-        { group: leftPivot, openAngle: Math.PI / 2 },
-        { group: rightPivot, openAngle: -Math.PI / 2 },
+        { group: leftPivot, openAngle: -Math.PI / 2 },
+        { group: rightPivot, openAngle: Math.PI / 2 },
       ],
       { triggerDistance: 6, openSpeed: Math.PI * 0.8 },
     );
@@ -303,7 +303,7 @@ export function createCastle(
     posZ,
     rotY = 0,
     mat = materialMadeira,
-    openAngle = Math.PI / 2,
+    openAngle = -Math.PI / 2,
   ) {
     const straightHeight = height - width / 2;
     const halfWidth = width / 2;
@@ -775,7 +775,7 @@ export function createCastle(
   const innerWallHeight = platformY-platformHeight/2;
   // Paredes
   createWallWithDoor(sTowerSize, wallThickness, innerWallHeight,3 ,5 ,tower3PosX, tower3PosZ-sTowerSize, 90, materialMuralha, materialMadeira,false);
-  createHouseDoor(3, 5, 0.3, tower3PosX, tower3PosZ - sTowerSize, Math.PI / 2, materialMadeira, -Math.PI / 2);  createWall(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize/2-halfW/2, halfD-sTowerSize, 0, materialMuralha, false);
+  createHouseDoor(3, 5, 0.3, tower3PosX, tower3PosZ - sTowerSize, Math.PI / 2, materialMadeira, Math.PI / 2);  createWall(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize/2-halfW/2, halfD-sTowerSize, 0, materialMuralha, false);
   createWall(halfD-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize-halfW, halfD/2-sTowerSize/2, 90, materialMuralha, false);
   createWall(sTowerSize, wallThickness, innerWallHeight, tower2PosX+sTowerSize, tower2PosZ, 0, materialMuralha, false);
 

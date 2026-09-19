@@ -674,8 +674,8 @@ export function createCastle(
   createWall(sTowerSize, wallThickness, innerWallHeight, tower2PosX+sTowerSize, tower2PosZ, 0, materialMuralha, false);
 
   // Primeiro andar
-  createFloor(halfW, sTowerSize, platformHeight, -halfW/2, -platformHeight/2, halfD-sTowerSize/2);
-  createFloor(sTowerSize, halfD, platformHeight, sTowerSize/2-halfW, -platformHeight/2, halfD/2);
+  createFloor(halfW, sTowerSize, 0.01, -halfW/2, 0, halfD-sTowerSize/2);
+  createFloor(sTowerSize, halfD, 0.01, sTowerSize/2-halfW, 0, halfD/2);
 
   // Segundo andar
   createFloor(halfW, sTowerSize, platformHeight, -halfW/2, platformY/2, halfD-sTowerSize/2);

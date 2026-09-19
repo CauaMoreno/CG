@@ -75,6 +75,7 @@ export class Structure {
 
 }
 
+
 export function createCastle(
   scene,
   position = new THREE.Vector3(0, 0, 0),
@@ -164,36 +165,39 @@ export function createCastle(
     return mesh;
   }
 
-function createArch(radius, thickness, mat, jambH = 0, segments = 24) {
-  const r0 = radius - 0.01;                 // margem mínima: evita z-fighting com os pilares
-  const r1 = radius + radius * 0.42;        // borda externa da moldura
-  const h = thickness * 1.05 / 2;           // meia espessura (relevo de 5%, como antes)
+  function createArch(radius, thickness, mat, jambH = 0, segments = 24) {
+    const r0 = radius - 0.01;                 // margem mínima: evita z-fighting com os pilares
+    const r1 = radius + radius * 0.42;        // borda externa da moldura
+    const h = thickness * 1.05 / 2;           // meia espessura (relevo de 5%, como antes)
 
-  // Perfil retangular. Os cantos duplicados mantêm as arestas vivas (normais planas)
-  const P = (x, y) => new THREE.Vector2(x, y);
-  const profile = [
-    P(r0, -h), P(r1, -h), P(r1, -h), P(r1, h),
-    P(r1,  h), P(r0,  h), P(r0,  h), P(r0, -h),
-  ];
+    // Perfil retangular. Os cantos duplicados mantêm as arestas vivas (normais planas)
+    const P = (x, y) => new THREE.Vector2(x, y);
+    const profile = [
+      P(r0, -h), P(r1, -h), P(r1, -h), P(r1, h),
+      P(r1,  h), P(r0,  h), P(r0,  h), P(r0, -h),
+    ];
 
-  const group = new THREE.Group();
+    const group = new THREE.Group();
 
-  // Meia-coroa: metade do círculo, deitada para ficar de pé no plano XY
-  const ring = new THREE.Mesh(
-    new THREE.LatheGeometry(profile, segments, Math.PI / 2, Math.PI),
-    mat,
-  );
-  ring.rotation.x = Math.PI / 2;
-  group.add(ring);
+    // Meia-coroa: metade do círculo, deitada para ficar de pé no plano XY
+    const ring = new THREE.Mesh(
+      new THREE.LatheGeometry(profile, segments, Math.PI / 2, Math.PI),
+      mat,
+    );
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
 
-  // Batentes retos, do arranque até o chão
-  if (jambH > 0) {
-    const jambGeo = new THREE.BoxGeometry(r1 - r0, jambH, h * 2);
-    for (const s of [-1, 1]) {
-      const jamb = new THREE.Mesh(jambGeo, mat);
-      jamb.position.set(s * (r0 + r1) / 2, -jambH / 2, 0);
-      group.add(jamb);
+    // Batentes retos, do arranque até o chão
+    if (jambH > 0) {
+      const jambGeo = new THREE.BoxGeometry(r1 - r0, jambH, h * 2);
+      for (const s of [-1, 1]) {
+        const jamb = new THREE.Mesh(jambGeo, mat);
+        jamb.position.set(s * (r0 + r1) / 2, -jambH / 2, 0);
+        group.add(jamb);
+      }
     }
+
+    return group;
   }
 
   function createFrontDoor(
@@ -279,58 +283,58 @@ function createArch(radius, thickness, mat, jambH = 0, segments = 24) {
   castle.addDecor(group);
 
   return { group, leftPivot, rightPivot, position: new THREE.Vector3(posX, 0, posZ), width, height };
-}
-
-function createWallWithDoor(
-  wallW, thickness, wallH,
-  doorW, doorH,
-  posX, posZ, rotY = 0,
-  mat = materialMuralha,
-  doorMaterial = mat,
-  addAmeias = true,
-) {
-  const rad = rotY * Math.PI / 180;
-  const cos = Math.cos(rad), sin = Math.sin(rad);
-  const side = (wallW - doorW) / 2;
-  const off = (doorW + side) / 2;
-  const r = doorW / 2;
-
-  const part = (w, h, dx, y) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, thickness), mat);
-    m.position.set(posX + dx * cos, y + h / 2, posZ - dx * sin);
-    m.rotation.y = rad;
-    castle.addWall(m);
-  };
-
-  part(side, wallH, -off, 0);
-  part(side, wallH,  off, 0);
-  part(doorW, wallH - doorH, 0, doorH);
-
-  // Arco
-  const arch = createArch(r, thickness, doorMaterial, doorH - r);
-  arch.position.set(posX, doorH - r, posZ);
-  arch.rotation.y = rad;
-  castle.addDecor(arch);
-
-  if (addAmeias) {
-    const ameiaH = 0.8;
-    const ameiaD = 1.0;
-    const qtd = Math.max(1, Math.floor(wallW / 2));
-    const gap = wallW / qtd;
-    const ameiaGeo = new THREE.BoxGeometry(gap * 0.75, ameiaH, ameiaD);
-
-    const ameias = new THREE.Group();
-    ameias.position.set(posX, wallH, posZ);
-    ameias.rotation.y = rad;
-
-    for (let i = 0; i < qtd; i++) {
-      const a = new THREE.Mesh(ameiaGeo, doorMaterial);
-      a.position.set(-wallW / 2 + (i + 0.5) * gap, ameiaH / 2, 0);
-      ameias.add(a);
-    }
-    castle.addDecor(ameias);
   }
-}
+
+  function createWallWithDoor(
+    wallW, thickness, wallH,
+    doorW, doorH,
+    posX, posZ, rotY = 0,
+    mat = materialMuralha,
+    doorMaterial = mat,
+    addAmeias = true,
+  ) {
+    const rad = rotY * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const side = (wallW - doorW) / 2;
+    const off = (doorW + side) / 2;
+    const r = doorW / 2;
+
+    const part = (w, h, dx, y) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, thickness), mat);
+      m.position.set(posX + dx * cos, y + h / 2, posZ - dx * sin);
+      m.rotation.y = rad;
+      castle.addWall(m);
+    };
+
+    part(side, wallH, -off, 0);
+    part(side, wallH,  off, 0);
+    part(doorW, wallH - doorH, 0, doorH);
+
+    // Arco
+    const arch = createArch(r, thickness, doorMaterial, doorH - r);
+    arch.position.set(posX, doorH - r, posZ);
+    arch.rotation.y = rad;
+    castle.addDecor(arch);
+
+    if (addAmeias) {
+      const ameiaH = 0.8;
+      const ameiaD = 1.0;
+      const qtd = Math.max(1, Math.floor(wallW / 2));
+      const gap = wallW / qtd;
+      const ameiaGeo = new THREE.BoxGeometry(gap * 0.75, ameiaH, ameiaD);
+
+      const ameias = new THREE.Group();
+      ameias.position.set(posX, wallH, posZ);
+      ameias.rotation.y = rad;
+
+      for (let i = 0; i < qtd; i++) {
+        const a = new THREE.Mesh(ameiaGeo, doorMaterial);
+        a.position.set(-wallW / 2 + (i + 0.5) * gap, ameiaH / 2, 0);
+        ameias.add(a);
+      }
+      castle.addDecor(ameias);
+    }
+  }
 
   function createRoundTower(
     outerRadius,
@@ -529,74 +533,6 @@ function createWallWithDoor(
     }
   }
 
-
-  function createSteppedTower(
-  bands,
-  height,
-  posX,
-  posZ,
-  depth = 1.0,
-  mat = materialTorre,
-) {
-  const halfD = depth / 2;
-  const totalZ = bands.reduce((sum, b) => sum + b.sizeZ, 0);
-
-  // 1) Converte cada faixa em um retângulo (coordenadas locais ao centro da torre)
-  let cursorZ = -totalZ / 2;
-  const rects = bands.map((b) => {
-    const rect = {
-      x0: b.offsetX - b.sizeX / 2,
-      x1: b.offsetX + b.sizeX / 2,
-      z0: cursorZ,
-      z1: cursorZ + b.sizeZ,
-    };
-    cursorZ += b.sizeZ;
-    return rect;
-  });
-
-  // 2) Trechos de [a0, a1] que NÃO estão cobertos pela faixa vizinha.
-  //    Nas pontas que encostam na vizinha, estende `depth` para fechar o canto côncavo.
-  function exposed(a0, a1, other) {
-    if (!other || other.x1 <= a0 || other.x0 >= a1) return [[a0, a1]];
-    const out = [];
-    if (other.x0 > a0) out.push([a0, Math.min(other.x0 + depth, a1)]);
-    if (other.x1 < a1) out.push([Math.max(other.x1 - depth, a0), a1]);
-    return out;
-  }
-
-  const wallAlongX = (x0, x1, z) =>
-    createWall(x1 - x0, depth, height, posX + (x0 + x1) / 2, posZ + z, 0, mat);
-
-  const wallAlongZ = (z0, z1, x) =>
-    createWall(z1 - z0, depth, height, posX + x, posZ + (z0 + z1) / 2, 90, mat);
-
-  // 3) Para cada faixa: paredes, e o topo
-  rects.forEach((r, i) => {
-    const w = r.x1 - r.x0;
-    const d = r.z1 - r.z0;
-
-    // Paredes laterais (esquerda e direita da faixa)
-    wallAlongZ(r.z0, r.z1, r.x0 + halfD);
-    wallAlongZ(r.z0, r.z1, r.x1 - halfD);
-
-    // Parede de cima e de baixo, apenas onde não há faixa vizinha
-    exposed(r.x0, r.x1, rects[i - 1]).forEach(([a, b]) =>
-      wallAlongX(a, b, r.z0 + halfD),
-    );
-    exposed(r.x0, r.x1, rects[i + 1]).forEach(([a, b]) =>
-      wallAlongX(a, b, r.z1 - halfD),
-    );
-
-    // Topo da faixa
-    const top = new THREE.Mesh(new THREE.BoxGeometry(w, depth, d), mat);
-    top.position.set(
-      posX + (r.x0 + r.x1) / 2,
-      height - depth,
-      posZ + (r.z0 + r.z1) / 2,
-    );
-    castle.addFloor(top);
-  });
-}
   // ==========================================================
   // 1. TORRES CIRCULARES
   // ==========================================================
@@ -752,8 +688,7 @@ function createWallWithDoor(
   createFloor(sTowerSize*1.5, halfD, platformHeight, tower2PosX+sTowerSize*1.25, platformY, tower2PosZ+halfD/2-wallThickness/2);
 
   createStairs(3, 11, 8, 12, wallThickness-halfW, tower2PosZ+3, 1);
-
-
+  
   return castle;
 }
 

@@ -139,22 +139,6 @@ export function createCastle(
     return mesh;
   }
 
-  function createInnerWall(
-    width,
-    depth,
-    height,
-    posX,
-    posZ,
-    rotY = 0,
-    mat = materialMuralha,
-  ) {
-    const geo = new THREE.BoxGeometry(width, height, depth);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(posX, height / 2, posZ);
-    mesh.rotation.y = rotY*(Math.PI / 180);
-    castle.addWall(mesh);
-  }
-
   function createFloor(width, depth, height, posX, posY, posZ, rotY = 0, mat = materialMadeira) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
@@ -638,7 +622,7 @@ export function createCastle(
   createWall(2, wallThickness, gateTowerH, -3.25, gateZ-gateTowerSize, 90, materialTorre);
   createWall(2, wallThickness, gateTowerH,  3.25, gateZ-gateTowerSize, 90, materialTorre);
 
-
+  // Cria o teto da entrada
   const topY = gateTowerH - wallThickness;
   const topParts = [
     [5.5, wallThickness, 0, gateZ + wallThickness],
@@ -680,9 +664,9 @@ export function createCastle(
  
   const innerWallHeight = platformY-platformHeight/2;
   createWallWithDoor(sTowerSize*1.5, wallThickness, innerWallHeight,3 ,5 ,tower3PosX, tower3PosZ-sTowerSize*1.25, 90, materialMuralha, materialMadeira,false);
-  createInnerWall(halfW-sTowerSize*1.5+wallThickness, wallThickness, innerWallHeight, sTowerSize*0.75-halfW/2, halfD-sTowerSize*1.5, 0);
-  createInnerWall(halfD-sTowerSize*1.5+wallThickness, wallThickness, innerWallHeight, sTowerSize*1.5-halfW, halfD/2-sTowerSize*0.75, 90);
-  createInnerWall(sTowerSize*1.5, wallThickness, innerWallHeight, tower2PosX+sTowerSize*1.25, tower2PosZ, 0);
+  createWall(halfW-sTowerSize*1.5+wallThickness, wallThickness, innerWallHeight, sTowerSize*0.75-halfW/2, halfD-sTowerSize*1.5, 0, materialMuralha, false);
+  createWall(halfD-sTowerSize*1.5+wallThickness, wallThickness, innerWallHeight, sTowerSize*1.5-halfW, halfD/2-sTowerSize*0.75, 90, materialMuralha, false);
+  createWall(sTowerSize*1.5, wallThickness, innerWallHeight, tower2PosX+sTowerSize*1.25, tower2PosZ, 0, materialMuralha, false);
 
   createFloor(halfW, sTowerSize*1.5, platformHeight, tower3PosX-halfW/2+wallThickness/2, platformY, tower3PosZ-sTowerSize*1.25);
   createFloor(sTowerSize*1.5, halfD, platformHeight, tower2PosX+sTowerSize*1.25, platformY, tower2PosZ+halfD/2-wallThickness/2);

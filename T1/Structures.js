@@ -340,6 +340,7 @@ export function createCastle(
 
     castle.addDecor(group);
   }
+
   function createWallWithDoor(
     wallW,
     thickness,
@@ -395,6 +396,39 @@ export function createCastle(
       }
       castle.addDecor(ameias);
     }
+  }
+
+  function createWallWithWindow(
+    width, depth, height,
+    winW, winH, winX, winY,
+    posX, posY, posZ, rotY = 0,
+    mat = materialMuralha,
+  ) {
+    const hw = width / 2;
+    const x0 = winX - winW / 2, x1 = winX + winW / 2;   // vão da janela em X (local)
+    const y0 = winY,            y1 = winY + winH;       // vão da janela em Y
+
+    const group = new THREE.Group();
+
+    // Caixa definida por intervalos locais [xa, xb] e [ya, yb]
+    const box = (xa, xb, ya, yb) => {
+      const w = xb - xa, h = yb - ya;
+      if (w <= 0.01 || h <= 0.01) return;               // ignora caixas sem tamanho
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, depth), mat);
+      m.position.set((xa + xb) / 2, (ya + yb) / 2, 0);
+      group.add(m);
+    };
+
+    box(-hw, hw, 0, y0);        // abaixo
+    box(-hw, hw, y1, height);   // acima
+    box(-hw, x0, y0, y1);       // esquerda
+    box(x1, hw, y0, y1);        // direita
+
+    group.position.set(posX, posY, posZ);
+    group.rotation.y = rotY * Math.PI / 180;
+
+    castle.addWall(group);
+    return group;
   }
 
   function createRoundTower(
@@ -626,22 +660,22 @@ export function createCastle(
   for (const [cx, cz] of corners) {
     createRoundTower(cornerRadius, cornerHeight, cx, cz);
     addRoundTowerSlits(cornerRadius, cornerHeight * 0.7, cx, cz, 4);
-    createRoundPlatform(cornerRadius+platformDepth, platformHeight, cx, platformY, cz, 32, Math.atan2(-cx, -cz)-Math.PI/4+(cx/halfW*cz/halfD)*0.1);
+    // createRoundPlatform(cornerRadius+platformDepth, platformHeight, cx, platformY, cz, 32, Math.atan2(-cx, -cz)-Math.PI/4+(cx/halfW*cz/halfD)*0.1);
   }
 
   // ==========================================================
   // 2. MURALHA OESTE
   // ==========================================================
 
-  const posZ1 = -halfD/2;
-  const width = (castleDepth - sTowerSize) / 2 - cornerRadius + 0.2;
+  const posZ1 = wallThickness/5-halfD/2;
+  const width = (castleDepth - sTowerSize) / 2 - cornerRadius;
   const tower2PosX = -halfW-sTowerSize/2+wallThickness/2;
   const tower2PosZ = 0;
 
   createWall(width, wallThickness, wallHeight, -halfW, posZ1, 90);
   createWall(width, wallThickness, wallHeight, -halfW, -posZ1, 90);
   createSquareTower(sTowerSize, sTowerSize, towerHeight, tower2PosX, tower2PosZ);
-  createPlatform(castleDepth-2*cornerRadius, platformDepth, platformHeight, tower2PosX+(sTowerSize/2)+(platformDepth/2), platformY,tower2PosZ, 90);
+  createPlatform(halfD, platformDepth, platformHeight, tower2PosX+(sTowerSize/2)+(platformDepth/2), platformY,-halfD/2+cornerRadius, 90);
 
 
   // ==========================================================
@@ -651,7 +685,7 @@ export function createCastle(
     const tower1PosZ = 0;
     const offset = sTowerSize/2;
     const firstWallWidth = offset;
-    const posZ2 = halfD/2;
+    const posZ2 = halfD/2-wallThickness/5;
 
     createWall(width, wallThickness, wallHeight, halfW, posZ2, 90);
     createWall(firstWallWidth, wallThickness, wallHeight, halfW, -halfD+firstWallWidth/2+cornerRadius, 90);
@@ -773,11 +807,20 @@ export function createCastle(
   // ==========================================================
  
   const innerWallHeight = platformY-platformHeight/2;
-  // Paredes
+  // Parede da Porta
   createWallWithDoor(sTowerSize, wallThickness, innerWallHeight,3 ,5 ,tower3PosX, tower3PosZ-sTowerSize, 90, materialMuralha, materialMadeira,false);
-  createHouseDoor(3, 5, 0.3, tower3PosX, tower3PosZ - sTowerSize, Math.PI / 2, materialMadeira, Math.PI / 2);  createWall(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize/2-halfW/2, halfD-sTowerSize, 0, materialMuralha, false);
+  createHouseDoor(3, 5, 0.3, tower3PosX, tower3PosZ - sTowerSize, Math.PI / 2, materialMadeira, Math.PI / 2); 
+  
+  // Parede do fundo
+  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, sTowerSize/2-halfW/2, 0, halfD-sTowerSize, 0, materialMuralha, false);
+  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, sTowerSize/2-halfW/2, innerWallHeight/2,halfD-sTowerSize, 0, materialMuralha, false);
+  
+  // Parede lateral
   createWall(halfD-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize-halfW, halfD/2-sTowerSize/2, 90, materialMuralha, false);
-  createWall(sTowerSize, wallThickness, innerWallHeight, tower2PosX+sTowerSize, tower2PosZ, 0, materialMuralha, false);
+  
+  // Parede da frente
+  createWallWithWindow(sTowerSize, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, tower2PosX+sTowerSize, 0,tower2PosZ, 0, materialMuralha, false);
+  createWallWithWindow(sTowerSize, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, tower2PosX+sTowerSize, innerWallHeight/2,tower2PosZ, 0, materialMuralha, false);
 
   // Primeiro andar
   createFloor(halfW, sTowerSize, 0.01, -halfW/2, 0, halfD-sTowerSize/2);
@@ -785,14 +828,17 @@ export function createCastle(
 
   // Segundo andar
   createFloor(halfW, sTowerSize, platformHeight, -halfW/2, platformY/2, halfD-sTowerSize/2);
-  createFloor(sTowerSize, halfD, platformHeight, sTowerSize/2-halfW, platformY/2, halfD/2);
+  createFloor(sTowerSize-platformDepth+wallThickness-1, halfD, platformHeight, platformDepth-halfW+wallThickness/2-0.5, platformY/2, halfD/2);
+  createFloor(platformDepth+1, halfD-cornerRadius-sTowerSize/2-platformY/2, platformHeight, sTowerSize-halfW-platformDepth/2-wallThickness/2, platformY/2, sTowerSize/2+platformY/2+(halfD-cornerRadius-sTowerSize/2-platformY/2)/2);
+  createFloor(platformDepth+1, sTowerSize/2, platformHeight, sTowerSize-halfW-platformDepth/2-wallThickness/2, platformY/2, sTowerSize/4);
 
   // Teto
   createFloor(halfW, sTowerSize, platformHeight, wallThickness/2-halfW/2, platformY, halfD-sTowerSize/2-wallThickness/2);
-  createFloor(sTowerSize, halfD, platformHeight, sTowerSize/2-halfW+wallThickness/2, platformY, halfD/2-wallThickness/2);
+  createFloor(sTowerSize-platformDepth+wallThickness-1, halfD, platformHeight, 2*platformDepth-halfW+0.5, platformY, halfD/2-wallThickness/2);
+  createFloor(platformDepth+1, halfD-cornerRadius-sTowerSize/2-platformY/2, platformHeight, platformDepth/2-halfW+0.5, platformY, sTowerSize/2+platformY/2+(halfD-cornerRadius-sTowerSize/2-platformY/4)/2);
 
-  createStairs(3, platformY/2, platformY/2, platformY*1.5, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
-  createStairs(3, platformY/2, platformY/2, platformY*1.5, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
 
   createWall(2, 2, 2, 0, 0, 0, materialMuralha, false); // Ponto de referência para o centro do castelo
   

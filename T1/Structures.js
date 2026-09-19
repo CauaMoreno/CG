@@ -19,6 +19,7 @@ export class Structure {
     this.ramps = [];
     this.decor = [];
     this.cylinders = [];
+    this.doors = [];
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -49,6 +50,29 @@ export class Structure {
   addCylinderCollider(cylinder) {
     this.cylinders.push(cylinder);
   }
+
+  addDoor(pivots, options = {}) {
+    const {
+      triggerDistance = 6,
+      openSpeed = Math.PI * 0.8,
+    } = options; 
+
+    const door = {
+      pivots: pivots.map((p) => ({
+        group: p.group,
+        closedAngle: 0,
+        openAngle: p.openAngle,
+      })), //salva angulo de abertura e qua pivo do grupo
+      triggerDistance,
+      openSpeed,
+      isOpen: false,
+    };
+
+    this.doors.push(door);
+    return door;
+  }
+
+
 }
 
 export function createCastle(
@@ -92,7 +116,7 @@ export function createCastle(
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, height / 2, posZ);
-    mesh.rotation.y = rotY*(Math.PI / 180);
+    mesh.rotation.y = rotY * (Math.PI / 180);
 
     if (addAmeias) {
       // Adiciona ameias
@@ -109,12 +133,20 @@ export function createCastle(
         mesh.add(meshAmeia);
       }
     }
-      
+
     castle.addWall(mesh);
     return mesh;
   }
 
-  function createInnerWall(width, depth, height, posX, posZ, rotY = 0, mat = materialMuralha) {
+  function createInnerWall(
+    width,
+    depth,
+    height,
+    posX,
+    posZ,
+    rotY = 0,
+    mat = materialMuralha,
+  ) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, height / 2, posZ);
@@ -164,7 +196,89 @@ function createArch(radius, thickness, mat, jambH = 0, segments = 24) {
     }
   }
 
-  return group;
+  function createFrontDoor(
+  width,
+  height,
+  thickness,
+  posX,
+  posZ,
+  rotY = 0,
+  mat = materialMadeira
+) {
+  const group = new THREE.Group();
+
+  const halfWidth = width / 2;
+  const straightHeight = height - halfWidth;
+
+  // FOLHA ESQUERDA
+  // Local: x=0 é a dobradiça (borda externa), x=halfWidth é o centro
+  const leftShape = new THREE.Shape();
+  leftShape.moveTo(0, 0);                    // base da dobradiça
+  leftShape.lineTo(0, straightHeight);       // sobe reto até a linha de arranque do arco
+  leftShape.absarc(
+    halfWidth, straightHeight,               // centro do arco = ponto central da porta, na altura de arranque
+    halfWidth,                               // raio = metade da largura da folha
+    Math.PI, Math.PI / 2,                    // varre da dobradiça até o topo central
+    true                                     // sentido horário
+  );
+  leftShape.lineTo(halfWidth, 0);            // desce reto no corte central até a base
+  leftShape.lineTo(0, 0);                    // fecha na dobradiça
+
+  const leftGeometry = new THREE.ExtrudeGeometry(leftShape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 16
+  });
+  leftGeometry.translate(0, 0, -thickness / 2);
+  const leftDoor = new THREE.Mesh(leftGeometry, mat);
+
+  // FOLHA DIREITA (espelhada)
+  // Local: x=0 é a dobradiça, x=-halfWidth é o centro
+  const rightShape = new THREE.Shape();
+  rightShape.moveTo(0, 0);
+  rightShape.lineTo(0, straightHeight);
+  rightShape.absarc(
+    -halfWidth, straightHeight,
+    halfWidth,
+    0, Math.PI / 2,
+    false                                    // sentido anti-horário (espelhado)
+  );
+  rightShape.lineTo(-halfWidth, 0);
+  rightShape.lineTo(0, 0);
+
+  const rightGeometry = new THREE.ExtrudeGeometry(rightShape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 16
+  });
+  rightGeometry.translate(0, 0, -thickness / 2);
+  const rightDoor = new THREE.Mesh(rightGeometry, mat);
+
+  const leftPivot = new THREE.Group();
+  leftPivot.position.set(posX - halfWidth, 0, posZ);
+  leftDoor.position.set(0, 0, 0);
+  leftPivot.add(leftDoor);
+
+  const rightPivot = new THREE.Group();
+  rightPivot.position.set(posX + halfWidth, 0, posZ);
+  rightDoor.position.set(0, 0, 0);
+  rightPivot.add(rightDoor);
+
+  group.add(leftPivot);
+  group.add(rightPivot);
+  group.rotation.y = rotY;
+
+  castle.addDoor(
+    [
+      { group: leftPivot, openAngle: Math.PI / 2 },
+      { group: rightPivot, openAngle: -Math.PI / 2 },
+    ],
+    { triggerDistance: 6, openSpeed: Math.PI * 0.8 }
+  );
+
+  castle.addDecor(group);
+
+  return { group, leftPivot, rightPivot, position: new THREE.Vector3(posX, 0, posZ), width, height };
 }
 
 function createWallWithDoor(
@@ -243,7 +357,12 @@ function createWallWithDoor(
     castle.addDecor(wall);
 
     // Cria o topo da torre
-    const geoTop = new THREE.CylinderGeometry(outerRadius, outerRadius, depth, 16);
+    const geoTop = new THREE.CylinderGeometry(
+      outerRadius,
+      outerRadius,
+      depth,
+      16,
+    );
     const top = new THREE.Mesh(geoTop, mat);
     top.position.set(0, height, 0);
     castle.addFloor(top);
@@ -257,10 +376,14 @@ function createWallWithDoor(
 
     for (let i = 0; i < ameiasQTD; i++) {
       const angle = (i / ameiasQTD) * Math.PI * 2;
-      const x = Math.cos(angle) * (outerRadius-0.65);
-      const z = Math.sin(angle) * (outerRadius-0.65);
+      const x = Math.cos(angle) * (outerRadius - 0.65);
+      const z = Math.sin(angle) * (outerRadius - 0.65);
 
-      const geoAmeia = new THREE.BoxGeometry(ameiaGap * 0.75, ameiaHeight, ameiaDepth);
+      const geoAmeia = new THREE.BoxGeometry(
+        ameiaGap * 0.75,
+        ameiaHeight,
+        ameiaDepth,
+      );
       const meshAmeia = new THREE.Mesh(geoAmeia, mat);
       meshAmeia.position.set(x, ameiaHeight, z);
       meshAmeia.rotation.y = -angle + Math.PI / 2;
@@ -295,15 +418,23 @@ function createWallWithDoor(
     createWall(sizeZ, depth, height, posX + halfX - halfD, posZ, 90, mat);
     createWall(sizeZ, depth, height, posX - halfX + halfD, posZ, 90, mat);
 
-
     // Adiciona o topo da torre
     const topGeo = new THREE.BoxGeometry(sizeX, depth, sizeZ);
     const top = new THREE.Mesh(topGeo, mat);
-    top.position.set(posX, height-depth, posZ);
+    top.position.set(posX, height - depth, posZ);
     castle.addFloor(top);
   }
 
-  function createPlatform(width, depth, height, posX, posY, posZ, rotY, mat = materialMadeira) {
+  function createPlatform(
+    width,
+    depth,
+    height,
+    posX,
+    posY,
+    posZ,
+    rotY,
+    mat = materialMadeira,
+  ) {
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, posY, posZ);
@@ -382,7 +513,14 @@ function createWallWithDoor(
     castle.addWall(mesh);
   }
 
-  function addRoundTowerSlits(radius, midY, posX, posZ, count = 4, mat = materialSeteira) {
+  function addRoundTowerSlits(
+    radius,
+    midY,
+    posX,
+    posZ,
+    count = 4,
+    mat = materialSeteira,
+  ) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.PI / count;
       const x = posX + Math.cos(angle) * (radius + 0.1);

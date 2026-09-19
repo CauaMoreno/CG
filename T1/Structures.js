@@ -584,7 +584,7 @@ export function createCastle(
     ramp.rotation.x = directionZ === 1 ? -angle : angle;
     ramp.position.x = startX;
     ramp.position.z = startZ + directionZ * (totalDepth / 2);
-    ramp.position.y = totalHeight / 2 + 0.08;
+    ramp.position.y = totalHeight / 2 + startY + 0.08;
     ramp.position.z += (directionZ * extension) / 2;
     castle.addRamp(ramp);
   }

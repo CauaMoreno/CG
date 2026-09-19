@@ -45,7 +45,8 @@ camera2 = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera2.position.set(0, 50, 50);
+camera2.position.set(0, 50, -80);
+camera2.lookAt(new THREE.Vector3(0, 0, 0));
 
 // Configuração dos Controles
 pointerControls = new PointerLockControls(camera1, renderer.domElement);

@@ -87,6 +87,7 @@ export function createCastle(
   const towerHeight = 30;
   const cornerRadius = 7;
   const cornerHeight = towerHeight;
+  const offset = sTowerSize/2;
 
   const platformHeight = 1.0;
   const platformDepth = sTowerSize/3;
@@ -660,7 +661,7 @@ export function createCastle(
   for (const [cx, cz] of corners) {
     createRoundTower(cornerRadius, cornerHeight, cx, cz);
     addRoundTowerSlits(cornerRadius, cornerHeight * 0.7, cx, cz, 4);
-    // createRoundPlatform(cornerRadius+platformDepth, platformHeight, cx, platformY, cz, 32, Math.atan2(-cx, -cz)-Math.PI/4+(cx/halfW*cz/halfD)*0.1);
+    createRoundPlatform(cornerRadius+platformDepth, platformHeight, cx, platformY, cz, 32, Math.atan2(-cx, -cz)-Math.PI/4+(cx/halfW*cz/halfD)*0.1);
   }
 
   // ==========================================================
@@ -683,7 +684,6 @@ export function createCastle(
   // ==========================================================
     const tower1PosX = halfW+sTowerSize/2-wallThickness/2;
     const tower1PosZ = 0;
-    const offset = sTowerSize/2;
     const firstWallWidth = offset;
     const posZ2 = halfD/2-wallThickness/5;
 
@@ -692,11 +692,7 @@ export function createCastle(
     createWall(offset+wallThickness, wallThickness, wallHeight, halfW+(offset)/2, -halfD+firstWallWidth+cornerRadius, 0, materialMuralha);
     createWall(halfD-cornerRadius-firstWallWidth-sTowerSize/2, wallThickness, wallHeight, offset+halfW, -(halfD-cornerRadius)/2, 90, materialMuralha);
     
-    createPlatform(firstWallWidth+platformDepth, platformDepth, platformHeight, halfW-platformDepth/2, platformY,firstWallWidth/2+cornerRadius-halfD+platformDepth/2, 90);
-    createPlatform(sTowerSize/2, platformDepth, platformHeight, tower1PosX-offset, platformY,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
-    createPlatform(halfD-firstWallWidth-cornerRadius-sTowerSize/2, platformDepth, platformHeight, tower1PosX-(platformDepth/2), platformY,tower1PosZ-sTowerSize/2-(halfD-firstWallWidth-cornerRadius-sTowerSize/2)/2, 90);
-    createPlatform(sTowerSize/2, platformDepth, platformHeight, tower1PosX-offset, platformY, - sTowerSize/2 - platformDepth/2, 0);
-    createPlatform(width+sTowerSize+platformDepth, platformDepth, platformHeight,halfW-platformDepth/2 , platformY, posZ2-sTowerSize/2-platformDepth/2, 90);
+    createPlatform(width+sTowerSize+platformDepth, platformDepth, platformHeight,halfW-platformDepth/2-wallThickness/2 , platformY, posZ2-sTowerSize/2-platformDepth/2, 90);
 
     createSquareTower(sTowerSize, sTowerSize, towerHeight, tower1PosX, tower1PosZ);
  
@@ -803,7 +799,7 @@ export function createCastle(
   createSquareTower(sTowerSize, sTowerSize, towerHeight, tower3PosX, tower3PosZ);
 
   // ==========================================================
-  // 6. CONSTUÇÕES INTERNAS
+  // 6. CONSTRUÇÃO DOS APOSENTOS PRINCIPAIS (CASA)
   // ==========================================================
  
   const innerWallHeight = platformY-platformHeight/2;
@@ -840,8 +836,32 @@ export function createCastle(
   createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
   createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
 
-  createWall(2, 2, 2, 0, 0, 0, materialMuralha, false); // Ponto de referência para o centro do castelo
+  // ==========================================================
+  // 7. CONSTRUÇÃO DO ARMAZEM
+  // ==========================================================
+  const warehouseWidth = halfW-sTowerSize-wallThickness;
+  const warehouseDepth = halfD;
+
+  createWallWithDoor(warehouseWidth, wallThickness/2, innerWallHeight, 3, 5, halfW-warehouseWidth/2-wallThickness/2, 0, 0, materialMuralha, materialMadeira,false);
+  createHouseDoor(3, 5, 0.3, halfW-warehouseWidth/2-wallThickness/2, 0, 0, materialMadeira, Math.PI / 2); 
+  createWall(warehouseDepth, wallThickness, innerWallHeight, halfW-warehouseWidth, -warehouseDepth/2, 90, materialMuralha,false);
   
+  // // Primeiro andar
+  createFloor(warehouseWidth, warehouseDepth, 0.01, halfW-warehouseWidth/2, 0, -warehouseDepth/2);
+  createFloor(offset, halfD-cornerRadius-firstWallWidth-sTowerSize/2, 0.01, halfW+offset/2, 0, -(halfD-cornerRadius)/2);
+
+  // Segundo andar
+  createFloor(warehouseWidth, warehouseDepth, platformHeight, halfW-warehouseWidth/2, platformY/2, -warehouseDepth/2);
+  createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY/2,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
+  createFloor(offset, offset, platformHeight, halfW+offset/2-wallThickness/2, platformY/2,-sTowerSize/2-offset/2, 0);
+  
+  // //Teto
+  createFloor(warehouseWidth, warehouseDepth, platformHeight, halfW-warehouseWidth/2-wallThickness/2, platformY, -warehouseDepth/2+wallThickness/4);
+  createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
+  
+  createStairs(platformDepth-wallThickness, platformY/2, platformY/2+0.1, platformY*1.5, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1);
+  createStairs(platformDepth-wallThickness, platformY/2+platformHeight/2, platformY/2, platformY*1.5, halfW+platformDepth/2-wallThickness, 0, -sTowerSize-platformY/2, 1);
+
   return castle;
 }
 

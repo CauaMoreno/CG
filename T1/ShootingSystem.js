@@ -13,6 +13,10 @@ export class ShootingSystem {
     this.maxDistance = 100;
     this.projectileRadius = 0.12;
 
+    // Cadência de tiro
+    this.fireRate = 0.2; // segundos entre tiros
+    this.timeSinceLastShot = this.fireRate; // Tempo do último tiro
+
     // Geometria/material provisórios
     this.projectileGeometry = new THREE.SphereGeometry(
       this.projectileRadius,
@@ -73,6 +77,14 @@ export class ShootingSystem {
   }
 
   shoot() {
+
+    // Verifica se o tempo desde o último tiro é suficiente
+    if (this.timeSinceLastShot < this.fireRate) {
+      return; // Não atira se ainda não passou o tempo necessário
+    }
+
+    this.timeSinceLastShot = 0; // Reseta o tempo desde o último tiro
+
     // A direção do tiro é a direção que a câmera está olhando
     this.camera.getWorldDirection(this.direction);
 
@@ -100,6 +112,10 @@ export class ShootingSystem {
   }
 
   update(delta) {
+
+    // Atualiza o tempo desde o último tiro
+    this.timeSinceLastShot += delta;
+
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i];
 

@@ -671,12 +671,11 @@ export function createCastle(
 
   // Rampa invisível
   const extension = 0.1; // folga só na base
-  const topInset = stepDepth; // termina um degrau antes do topo (ajuste se precisar)
   const angle = Math.atan2(totalHeight, totalDepth);
   const slopeLength = Math.hypot(totalDepth, totalHeight);
 
   const rampStart = -extension;
-  const rampEnd = slopeLength - topInset / Math.cos(angle);
+  const rampEnd = slopeLength + extension;
   const rampLength = rampEnd - rampStart;
   const rampCenter = (rampStart + rampEnd) / 2; // distância ao longo da inclinação
   const rampThickness = 0.4;

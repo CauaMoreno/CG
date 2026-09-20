@@ -603,7 +603,7 @@ export function createCastle(
     const yPos = currentHeight / 2 + startY;
 
     mesh.position.set(startX, yPos, zPos);
-    castle.addRamp(mesh);
+    castle.addDecor(mesh);
 
     // Paredes invisíveis laterais
     const wallHeight = currentHeight + sideExtra;
@@ -903,8 +903,8 @@ export function createCastle(
   createFloor(sTowerSize-platformDepth+wallThickness-1, halfD, platformHeight, 2*platformDepth-halfW+0.5, platformY, halfD/2-wallThickness/2);
   createFloor(platformDepth+1, halfD-cornerRadius-sTowerSize/2-platformY/2, platformHeight, platformDepth/2-halfW+0.5, platformY, sTowerSize/2+platformY/2+(halfD-cornerRadius-sTowerSize/2-platformY/4)/2);
 
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1, materialMadeira, false);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1, materialMadeira, false);
 
   // ==========================================================
   // 7. CONSTRUÇÃO DO ARMAZEM
@@ -932,9 +932,8 @@ export function createCastle(
   createFloor(warehouseWidth, warehouseDepth, platformHeight, halfW-warehouseWidth/2-wallThickness/2, platformY, -warehouseDepth/2+wallThickness/4);
   createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
   
-  createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1);
-  createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1);
-
+  createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1, materialMadeira, false);
+  createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1, materialMadeira, false);
   return castle;
 }
 

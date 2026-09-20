@@ -14,7 +14,7 @@ export class ShootingSystem {
     this.projectileRadius = 0.12;
 
     // Cadência de tiro
-    this.fireRate = 0.2; // segundos entre tiros
+    this.fireRate = 0.25; // segundos entre tiros
     this.timeSinceLastShot = this.fireRate; // Tempo do último tiro
 
     // Geometria/material provisórios

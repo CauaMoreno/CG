@@ -578,50 +578,120 @@ export function createCastle(
     startZ,
     directionZ = 1,
     mat = materialMadeira,
+    closeBack = true, // false se o topo da escada se conecta a um piso/passarela
   ) {
     const stepHeight = totalHeight / numSteps;
     const stepDepth = totalDepth / numSteps;
-
-    for (let i = 0; i < numSteps; i++) {
-      const currentHeight = (i + 1) * stepHeight;
-      const geo = new THREE.BoxGeometry(width, currentHeight, stepDepth);
-      const mesh = new THREE.Mesh(geo, mat);
-
-      const zPos = startZ + directionZ * (i * stepDepth + stepDepth / 2);
-      const yPos = currentHeight / 2 + startY;
-
-      mesh.position.set(startX, yPos, zPos);
-      castle.addRamp(mesh);
-    }
-
-    const extension = 0.1;
-    const angle = Math.atan2(totalHeight, totalDepth);
-    const rampLength = Math.sqrt(
-      totalDepth * totalDepth + totalHeight * totalHeight,
-    );
-    const rampLengthExtended = rampLength + extension * 2;
-    const rampWidth = width;
-    const rampThickness = 0.4;
-
-    const rampMaterial = new THREE.MeshBasicMaterial({
+    const wallThickness = 0.01;
+    const invisibleMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
       depthWrite: false,
     });
 
-    const rampGeometry = new THREE.BoxGeometry(
-      rampWidth,
-      rampThickness,
-      rampLengthExtended,
-    );
+  const playerRadius = 0.8; // mesmo valor de CollisionSystem.playerRadius
+  const railHeight = 0.9;   // altura do corrimão acima do degrau
+  const railSize = 0.1;     // espessura da barra e dos postes
+  const sideExtra = railHeight; // paredes invisíveis da altura do corrimão
 
-    const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
-    ramp.rotation.x = directionZ === 1 ? -angle : angle;
-    ramp.position.x = startX;
-    ramp.position.z = startZ + directionZ * (totalDepth / 2);
-    ramp.position.y = totalHeight / 2 + startY + 0.08;
-    ramp.position.z += (directionZ * extension) / 2;
-    castle.addRamp(ramp);
+  for (let i = 0; i < numSteps; i++) {
+    const currentHeight = (i + 1) * stepHeight;
+    const geo = new THREE.BoxGeometry(width, currentHeight, stepDepth);
+    const mesh = new THREE.Mesh(geo, mat);
+
+    const zPos = startZ + directionZ * (i * stepDepth + stepDepth / 2);
+    const yPos = currentHeight / 2 + startY;
+
+    mesh.position.set(startX, yPos, zPos);
+    castle.addRamp(mesh);
+
+    // Paredes invisíveis laterais
+    const wallHeight = currentHeight + sideExtra;
+    const geoWall = new THREE.BoxGeometry(wallThickness, wallHeight, stepDepth);
+    const sideOffset = width / 2 + wallThickness / 2;
+
+    for (const side of [-1, 1]) {
+      const wallMesh = new THREE.Mesh(geoWall, invisibleMaterial);
+      wallMesh.position.set(
+        startX + side * sideOffset,
+        startY + wallHeight / 2,
+        zPos,
+      );
+      castle.addWall(wallMesh);
+    }
+  }
+
+  if (closeBack) {
+    const backHeight = totalHeight - 0.3;
+    const backWall = new THREE.Mesh(
+      new THREE.BoxGeometry(width + wallThickness * 2, backHeight, wallThickness),
+      invisibleMaterial,
+    );
+    backWall.position.set(
+      startX,
+      startY + backHeight / 2,
+      startZ + directionZ * (totalDepth + playerRadius + wallThickness / 2),
+    );
+    castle.addWall(backWall);
+  }
+
+  const railAngle = Math.atan2(totalHeight, totalDepth);
+  const railLength = Math.hypot(totalDepth, totalHeight);
+  const railX = width / 2 - railSize / 2; // rente à borda do degrau
+
+  const postGeo = new THREE.BoxGeometry(railSize, railHeight, railSize);
+  const barGeo = new THREE.BoxGeometry(railSize, railSize, railLength);
+
+  for (const side of [-1, 1]) {
+    const x = startX + side * railX;
+
+    // Postes: um a cada 2 degraus, mais o último
+    for (let i = 0; i < numSteps; i++) {
+      if (i % 2 !== 0 && i !== numSteps - 1) continue;
+
+      const post = new THREE.Mesh(postGeo, mat);
+      post.position.set(
+        x,
+        startY + (i + 1) * stepHeight + railHeight / 2,
+        startZ + directionZ * (i * stepDepth + stepDepth / 2),
+      );
+      castle.addDecor(post);
+    }
+
+    // Barra do corrimão, paralela à inclinação da escada
+    const bar = new THREE.Mesh(barGeo, mat);
+    bar.rotation.x = directionZ === 1 ? -railAngle : railAngle;
+    bar.position.set(
+      x,
+      startY + totalHeight / 2 + stepHeight / 2 + railHeight,
+      startZ + directionZ * (totalDepth / 2),
+    );
+    castle.addDecor(bar);
+  }
+
+  // Rampa invisível
+  const extension = 0.1; // folga só na base
+  const topInset = stepDepth; // termina um degrau antes do topo (ajuste se precisar)
+  const angle = Math.atan2(totalHeight, totalDepth);
+  const slopeLength = Math.hypot(totalDepth, totalHeight);
+
+  const rampStart = -extension;
+  const rampEnd = slopeLength - topInset / Math.cos(angle);
+  const rampLength = rampEnd - rampStart;
+  const rampCenter = (rampStart + rampEnd) / 2; // distância ao longo da inclinação
+  const rampThickness = 0.4;
+
+  const ramp = new THREE.Mesh(
+    new THREE.BoxGeometry(width, rampThickness, rampLength),
+    invisibleMaterial,
+  );
+  ramp.rotation.x = directionZ === 1 ? -angle : angle;
+  ramp.position.set(
+    startX,
+    startY + rampCenter * Math.sin(angle) + 0.08,
+    startZ + directionZ * rampCenter * Math.cos(angle),
+  );
+  castle.addRamp(ramp);
   }
 
   function createArrowSlit(posX, posZ, rotY, midY, mat = materialSeteira) {
@@ -808,8 +878,8 @@ export function createCastle(
   createHouseDoor(3, 5, 0.3, tower3PosX, tower3PosZ - sTowerSize, Math.PI / 2, materialMadeira, Math.PI / 2); 
   
   // Parede do fundo
-  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, sTowerSize/2-halfW/2, 0, halfD-sTowerSize, 0, materialMuralha, false);
-  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 5, 3, 0, 1.5, sTowerSize/2-halfW/2, innerWallHeight/2,halfD-sTowerSize, 0, materialMuralha, false);
+  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 8, 3, 0, 1.5, sTowerSize/2-halfW/2, 0, halfD-sTowerSize, 0, materialMuralha, false);
+  createWallWithWindow(halfW-sTowerSize+wallThickness, wallThickness, innerWallHeight/2, 8, 3, 0, 1.5, sTowerSize/2-halfW/2, innerWallHeight/2,halfD-sTowerSize, 0, materialMuralha, false);
   
   // Parede lateral
   createWall(halfD-sTowerSize+wallThickness, wallThickness, innerWallHeight, sTowerSize-halfW, halfD/2-sTowerSize/2, 90, materialMuralha, false);
@@ -833,8 +903,8 @@ export function createCastle(
   createFloor(sTowerSize-platformDepth+wallThickness-1, halfD, platformHeight, 2*platformDepth-halfW+0.5, platformY, halfD/2-wallThickness/2);
   createFloor(platformDepth+1, halfD-cornerRadius-sTowerSize/2-platformY/2, platformHeight, platformDepth/2-halfW+0.5, platformY, sTowerSize/2+platformY/2+(halfD-cornerRadius-sTowerSize/2-platformY/4)/2);
 
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY*1.5, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1);
 
   // ==========================================================
   // 7. CONSTRUÇÃO DO ARMAZEM
@@ -844,9 +914,12 @@ export function createCastle(
 
   createWallWithDoor(warehouseWidth, wallThickness/2, innerWallHeight, 3, 5, halfW-warehouseWidth/2-wallThickness/2, 0, 0, materialMuralha, materialMadeira,false);
   createHouseDoor(3, 5, 0.3, halfW-warehouseWidth/2-wallThickness/2, 0, 0, materialMadeira, Math.PI / 2); 
-  createWall(warehouseDepth, wallThickness, innerWallHeight, halfW-warehouseWidth, -warehouseDepth/2, 90, materialMuralha,false);
-  
-  // // Primeiro andar
+  createWallWithWindow(warehouseDepth/2, wallThickness, innerWallHeight/2, 7, 3, 0, 1.5,halfW-warehouseWidth, 0,-warehouseDepth/4, 90, materialMuralha,false);
+  createWallWithWindow(warehouseDepth/2, wallThickness, innerWallHeight/2, 7, 3, 0, 1.5,halfW-warehouseWidth, 0,-3*warehouseDepth/4, 90, materialMuralha,false);
+  createWallWithWindow(warehouseDepth/2, wallThickness, innerWallHeight/2, 7, 3, 0, 1.5,halfW-warehouseWidth, innerWallHeight/2,-warehouseDepth/4, 90, materialMuralha,false);
+  createWallWithWindow(warehouseDepth/2, wallThickness, innerWallHeight/2, 7, 3, 0, 1.5,halfW-warehouseWidth, innerWallHeight/2,-3*warehouseDepth/4, 90, materialMuralha,false);
+
+  // Primeiro andar
   createFloor(warehouseWidth, warehouseDepth, 0.01, halfW-warehouseWidth/2, 0, -warehouseDepth/2);
   createFloor(offset, halfD-cornerRadius-firstWallWidth-sTowerSize/2, 0.01, halfW+offset/2, 0, -(halfD-cornerRadius)/2);
 
@@ -855,12 +928,12 @@ export function createCastle(
   createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY/2,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
   createFloor(offset, offset, platformHeight, halfW+offset/2-wallThickness/2, platformY/2,-sTowerSize/2-offset/2, 0);
   
-  // //Teto
+  // Teto
   createFloor(warehouseWidth, warehouseDepth, platformHeight, halfW-warehouseWidth/2-wallThickness/2, platformY, -warehouseDepth/2+wallThickness/4);
   createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
   
-  createStairs(platformDepth-wallThickness, platformY/2, platformY/2+0.1, platformY*1.5, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1);
-  createStairs(platformDepth-wallThickness, platformY/2+platformHeight/2, platformY/2, platformY*1.5, halfW+platformDepth/2-wallThickness, 0, -sTowerSize-platformY/2, 1);
+  createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1);
+  createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1);
 
   return castle;
 }

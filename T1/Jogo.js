@@ -9,6 +9,7 @@ import {
 } from "../libs/util/util.js";
 import { createGround, createCastle } from "./Structures.js";
 import { CollisionSystem } from "./CollisionSystem.js";
+import { animateDoors } from "./Animations.js";
 
 let scene, renderer, material, light;
 let mode = 1;
@@ -17,15 +18,12 @@ let camera, camera1, camera2;
 let controls, orbitControls, pointerControls;
 const crosshair = document.getElementById("crosshair");
 
-let castle, walls, floors, ramps, ground;
+let castle, ground;
 
-const gravity = 9.8;
-let verticalVelocity = 0;
-let isGrounded = false;
-let currentRamp = null;
 
 // Inicialização da Cena e Renderizador
 scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
 renderer = initRenderer();
 material = setDefaultMaterial();
 light = initDefaultBasicLight(scene);
@@ -37,11 +35,12 @@ camera1 = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera1.position.set(2, 50, 20);
+camera1.position.set(0, 0, -50);
+camera1.lookAt(new THREE.Vector3(0, 0, 0));
 
 // Câmera 2 (Modo Espectador / Órbita)
 camera2 = new THREE.PerspectiveCamera(
-  75,
+  60,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
@@ -66,11 +65,12 @@ renderer.domElement.addEventListener("click", function () {
 });
 
 // Controle de Movimentação
-const speed = 10;
+let speed = 10;
 let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let running = false;
 
 window.addEventListener("keydown", function (event) {
   movementControls(event.keyCode, true);
@@ -102,6 +102,10 @@ function movementControls(key, value) {
       moveRight = value;
       break;
 
+    case 16: // Shift
+      running = value;
+      break;
+
     case 67: // Tecla C
       if (value) {
         if (mode === 2) {
@@ -130,6 +134,12 @@ function movementControls(key, value) {
 function moveAnimate(delta) {
   if (mode !== 1) return;
 
+  if (running) {
+    speed = 20;
+  } else {
+    speed = 10;
+  }
+
   const oldPosition = controls.object.position.clone();
 
   if (moveForward) controls.moveForward(speed * delta);
@@ -137,105 +147,21 @@ function moveAnimate(delta) {
   if (moveRight) controls.moveRight(speed * delta);
   if (moveLeft) controls.moveRight(-speed * delta);
 
-  const targetPosition = controls.object.position.clone();
-
-  let movement = new THREE.Vector3(
-    targetPosition.x - oldPosition.x,
-    0,
-    targetPosition.z - oldPosition.z
-  );
-
-  if (isGrounded && currentRamp !== null) {
-    movement = movement.clone().projectOnPlane(currentRamp.normal);
-    controls.object.position.copy(oldPosition);
-    controls.object.position.add(movement);
-  }
-
-  const positionBeforeWallCollision = controls.object.position.clone();
-
-  // Colisão Eixo X
-  controls.object.position.set(
-    positionBeforeWallCollision.x,
-    oldPosition.y,
-    positionBeforeWallCollision.z
-  );
-
-  if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-    controls.object.position.x = oldPosition.x;
-  }
-
-  // Colisão Eixo Z
-  const xAfterCollision = controls.object.position.x;
-  controls.object.position.set(
-    xAfterCollision,
-    oldPosition.y,
-    positionBeforeWallCollision.z
-  );
-
-  if (collisionSystem.checkWallCollision(controls.object.position, walls)) {
-    controls.object.position.z = oldPosition.z;
-  }
-
-  const groundHeight = collisionSystem.checkGround(controls.object.position, floors);
-  const ramp = collisionSystem.checkRamp(controls.object.position, ramps);
-
-  let surfaceHeight = null;
-  let surfaceType = null;
-
-  if (groundHeight !== null) {
-    surfaceHeight = groundHeight;
-    surfaceType = "ground";
-  }
-
-  if (ramp !== null && (surfaceHeight === null || ramp.height > surfaceHeight)) {
-    surfaceHeight = ramp.height;
-    surfaceType = "ramp";
-  }
-
-  if (surfaceType === "ramp" && isGrounded) {
-    controls.object.position.y = ramp.height;
-    verticalVelocity = 0;
-    currentRamp = ramp;
-    return;
-  }
-
-  verticalVelocity -= gravity * delta;
-  controls.object.position.y += verticalVelocity * delta;
-
-  if (
-    surfaceHeight !== null &&
-    controls.object.position.y <= surfaceHeight &&
-    verticalVelocity <= 0
-  ) {
-    controls.object.position.y = surfaceHeight;
-    verticalVelocity = 0;
-    isGrounded = true;
-    currentRamp = surfaceType === "ramp" ? ramp : null;
-  } else {
-    isGrounded = false;
-    currentRamp = null;
-  }
+  collisionSystem.calculateCollision(castle, controls, oldPosition, delta);
 }
 
 // Redimensionamento de Janela
 window.addEventListener(
   "resize",
   function () {
-    onWindowResize(camera, renderer);
+    onWindowResize(camera, renderer, controls);
   },
   false
 );
 
-// Criação do Cenário
-let axesHelper = new THREE.AxesHelper(12);
-scene.add(axesHelper);
-
 ground = createGround(scene);
 castle = createCastle(scene);
-walls = castle.walls;
-floors = castle.floors;
-ramps = castle.ramps;
-floors.push(ground);
+castle.floors.push(ground);
 
 // Loop Único de Renderização
 const clock = new THREE.Clock();
@@ -246,6 +172,7 @@ function render() {
 
   if (mode === 1) {
     moveAnimate(delta);
+    animateDoors(castle.doors, camera.position, delta)
   } else if (mode === 2) {
     orbitControls.update();
   }

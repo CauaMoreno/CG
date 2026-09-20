@@ -6,7 +6,7 @@ export class ShootingSystem {
     this.camera = camera;
     this.castle = castle;
 
-    this.projectiles = [];
+    this.projectiles = []; // Vetor para armazenar os projéteis ativos
 
     // Configurações do tiro
     this.projectileSpeed = 60;
@@ -58,9 +58,15 @@ export class ShootingSystem {
 
     // Posição relativa da arma em relação à câmera
     this.weapon.position.set(
+      0.0,  // direita
+      -0.35, // baixo
+      -0.5   // frente
+
+      /*
       0.35,  // direita
       -0.35, // baixo
       -0.8   // frente
+      */
     );
 
     this.camera.add(this.weapon);

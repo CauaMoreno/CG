@@ -10,6 +10,7 @@ import {
 import { createGround, createCastle } from "./Structures.js";
 import { CollisionSystem } from "./CollisionSystem.js";
 import { animateDoors } from "./Animations.js";
+import { ShootingSystem } from "./ShootingSystem.js";
 
 let scene, renderer, material, light;
 let mode = 1;
@@ -37,6 +38,7 @@ camera1 = new THREE.PerspectiveCamera(
 );
 camera1.position.set(0, 0, -50);
 camera1.lookAt(new THREE.Vector3(0, 0, 0));
+scene.add(camera1);
 
 // Câmera 2 (Modo Espectador / Órbita)
 camera2 = new THREE.PerspectiveCamera(
@@ -78,6 +80,15 @@ window.addEventListener("keydown", function (event) {
 
 window.addEventListener("keyup", function (event) {
   movementControls(event.keyCode, false);
+});
+
+// Função pra receber clique e atirar
+window.addEventListener("mousedown", function (event) {
+  if (mode !== 1) return; // Só atira no modo 1
+
+  if(!pointerControls.isLocked) return; // Só atira se o ponteiro estiver travado
+
+  shootingSystem.shoot();
 });
 
 function movementControls(key, value) {
@@ -163,6 +174,8 @@ ground = createGround(scene);
 castle = createCastle(scene);
 castle.floors.push(ground);
 
+const shootingSystem = new ShootingSystem(scene, camera1, castle);
+
 // Loop Único de Renderização
 const clock = new THREE.Clock();
 
@@ -172,7 +185,8 @@ function render() {
 
   if (mode === 1) {
     moveAnimate(delta);
-    animateDoors(castle.doors, camera.position, delta)
+    animateDoors(castle.doors, camera.position, delta);
+    shootingSystem.update(delta);
   } else if (mode === 2) {
     orbitControls.update();
   }

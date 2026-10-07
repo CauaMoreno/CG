@@ -15,7 +15,7 @@ export class CollisionSystem {
     this.playerHeight = 2.0;
 
     // Estado físico — precisa existir antes do primeiro calculateCollision
-    this.gravity = 9.8;
+    this.gravity = 25;
     this.verticalVelocity = 0;
     this.isGrounded = false;
     this.currentRamp = null;

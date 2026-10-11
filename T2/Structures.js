@@ -5,8 +5,8 @@ import * as THREE from "three";
 // ============================================================
 // ==========================MATERIAIS=========================
 // ============================================================
-const materialMuralha = setDefaultMaterial("rgb(150,142,128)");
-const materialTorre = setDefaultMaterial("rgb(122,115,102)");
+const materialMuralha = setDefaultMaterial("gray");
+const materialTorre = setDefaultMaterial("dimgray");
 const materialMadeira = setDefaultMaterial("rgb(92,61,33)");
 const materialSeteira = setDefaultMaterial("rgb(15,15,15)");
 
@@ -168,6 +168,28 @@ export function createCastle(
     return mesh;
   }
 
+  function doorBodyCSG(width, height, thickness) {
+    const halfWidth = width / 2;
+    const straightHeight = height - halfWidth;
+
+    const retMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(width, straightHeight, thickness),
+    );
+    retMesh.position.set(0, straightHeight / 2, 0);
+    retMesh.matrixAutoUpdate = false;
+    retMesh.updateMatrix();
+
+    const arcMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(halfWidth, halfWidth, thickness, 32),
+    );
+    arcMesh.position.set(0, straightHeight, 0);
+    arcMesh.rotation.x = Math.PI / 2;
+    arcMesh.matrixAutoUpdate = false;
+    arcMesh.updateMatrix();
+
+    return CSG.fromMesh(retMesh).union(CSG.fromMesh(arcMesh));
+  }
+
   function createFrontDoor(
     width,
     height,
@@ -177,71 +199,36 @@ export function createCastle(
     rotY = 0,
     mat = materialMadeira,
   ) {
-    const group = new THREE.Group();
-
     const halfWidth = width / 2;
-    const straightHeight = height - halfWidth;
+    const body = doorBodyCSG(width, height, thickness);
 
-    // FOLHA ESQUERDA
-    // Local: x=0 é a dobradiça (borda externa), x=halfWidth é o centro
-    const leftShape = new THREE.Shape();
-    leftShape.moveTo(0, 0); // base da dobradiça
-    leftShape.lineTo(0, straightHeight); // sobe reto até a linha de arranque do arco
-    leftShape.absarc(
-      halfWidth,
-      straightHeight, // centro do arco = ponto central da porta, na altura de arranque
-      halfWidth, // raio = metade da largura da folha
-      Math.PI,
-      Math.PI / 2, // varre da dobradiça até o topo central
-      true, // sentido horário
-    );
-    leftShape.lineTo(halfWidth, 0); // desce reto no corte central até a base
-    leftShape.lineTo(0, 0); // fecha na dobradiça
+    function makeLeaf(side) {
+      const cutMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(halfWidth, height * 2, thickness * 2),
+      );
+      cutMesh.position.set((side * halfWidth) / 2, height, 0);
+      cutMesh.matrixAutoUpdate = false;
+      cutMesh.updateMatrix();
 
-    const leftGeometry = new THREE.ExtrudeGeometry(leftShape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    leftGeometry.translate(0, 0, -thickness / 2);
-    const leftDoor = new THREE.Mesh(leftGeometry, mat);
-
-    // FOLHA DIREITA (espelhada)
-    // Local: x=0 é a dobradiça, x=-halfWidth é o centro
-    const rightShape = new THREE.Shape();
-    rightShape.moveTo(0, 0);
-    rightShape.lineTo(0, straightHeight);
-    rightShape.absarc(
-      -halfWidth,
-      straightHeight,
-      halfWidth,
-      0,
-      Math.PI / 2,
-      false, // sentido anti-horário (espelhado)
-    );
-    rightShape.lineTo(-halfWidth, 0);
-    rightShape.lineTo(0, 0);
-
-    const rightGeometry = new THREE.ExtrudeGeometry(rightShape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    rightGeometry.translate(0, 0, -thickness / 2);
-    const rightDoor = new THREE.Mesh(rightGeometry, mat);
+      const leaf = CSG.toMesh(
+        body.intersect(CSG.fromMesh(cutMesh)),
+        new THREE.Matrix4(),
+        mat,
+      );
+      leaf.geometry.translate(-side * halfWidth, 0, 0);
+      return leaf;
+    }
 
     const leftPivot = new THREE.Group();
     leftPivot.position.set(posX - halfWidth, 0, posZ);
-    leftDoor.position.set(0, 0, 0);
-    leftPivot.add(leftDoor);
+    leftPivot.add(makeLeaf(-1));
 
     const rightPivot = new THREE.Group();
     rightPivot.position.set(posX + halfWidth, 0, posZ);
-    rightDoor.position.set(0, 0, 0);
-    rightPivot.add(rightDoor);
+    rightPivot.add(makeLeaf(1));
 
-    group.add(leftPivot);
-    group.add(rightPivot);
+    const group = new THREE.Group();
+    group.add(leftPivot, rightPivot);
     group.rotation.y = rotY;
 
     castle.addDoor(
@@ -265,31 +252,21 @@ export function createCastle(
     mat = materialMadeira,
     openAngle = -Math.PI / 2,
   ) {
-    const straightHeight = height - width / 2;
     const halfWidth = width / 2;
 
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(0, straightHeight);
-    shape.absarc(halfWidth, straightHeight, halfWidth, Math.PI, 0, true);
-    shape.lineTo(width, 0);
-    shape.lineTo(0, 0);
-
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    geometry.translate(0, 0, -thickness / 2);
-    const doorMesh = new THREE.Mesh(geometry, mat);
+    const doorMesh = CSG.toMesh(
+      doorBodyCSG(width, height, thickness),
+      new THREE.Matrix4(),
+      mat,
+    );
+    doorMesh.geometry.translate(halfWidth, 0, 0);
 
     const pivot = new THREE.Group();
-    pivot.position.set(-halfWidth, 0, 0); // deslocamento LOCAL, antes da rotação
-    doorMesh.position.set(0, 0, 0);
+    pivot.position.set(-halfWidth, 0, 0);
     pivot.add(doorMesh);
 
     const group = new THREE.Group();
-    group.position.set(posX, 0, posZ); // centro real da porta no mundo
+    group.position.set(posX, 0, posZ);
     group.rotation.y = rotY;
     group.add(pivot);
 

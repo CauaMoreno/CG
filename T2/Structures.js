@@ -7,8 +7,9 @@ import * as THREE from "three";
 // ============================================================
 const materialMuralha = setDefaultMaterial("gray");
 const materialTorre = setDefaultMaterial("dimgray");
-const materialMadeira = setDefaultMaterial("rgb(92,61,33)");
-const materialSeteira = setDefaultMaterial("rgb(15,15,15)");
+const materialMadeira = setDefaultMaterial("black");
+const materialAltar = setDefaultMaterial("darkred");
+const materialGrama = setDefaultMaterial("green");
 
 export class Structure {
   constructor(scene, position = new THREE.Vector3(0, 0, 0), rotation = 0) {
@@ -633,7 +634,7 @@ export function createCastle(
   castle.addRamp(ramp);
   }
 
-  function createArrowSlit(posX, posZ, rotY, midY, mat = materialSeteira) {
+  function createArrowSlit(posX, posZ, rotY, midY, mat = materialMadeira) {
     const geo = new THREE.BoxGeometry(0.3, 2.2, 0.3);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, midY, posZ);
@@ -647,14 +648,38 @@ export function createCastle(
     posX,
     posZ,
     count = 4,
-    mat = materialSeteira,
+    mat = materialMadeira,
   ) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.PI / count;
-      const x = posX + Math.cos(angle) * (radius + 0.1);
-      const z = posZ + Math.sin(angle) * (radius + 0.1);
-      createArrowSlit(x, z, -angle + Math.PI / 2, midY, mat);
+      const x = posX + Math.cos(angle) * (cornerRadius + 0.1);
+      const z = posZ + Math.sin(angle) * (cornerRadius + 0.1);
+      createArrowSlit(x, z, -angle + Math.PI / 2, cornerHeight, mat);
     }
+  }
+
+  function createPedestals(posX, posZ, width, depth, height, mat = materialMadeira) {
+    const baseH = height * 0.15;
+    const capH = height * 0.1;
+    const shaftH = height - baseH - capH;
+
+    const pedestal = new THREE.Group();
+
+    // base e tampo são um pouco maiores que o fuste
+    const parts = [
+      { w: width,        d: depth,        h: baseH,  y: baseH / 2 },
+      { w: width * 0.8,  d: depth * 0.8,  h: shaftH, y: baseH + shaftH / 2 },
+      { w: width,        d: depth,        h: capH,   y: baseH + shaftH + capH / 2 },
+    ];
+
+    for (const p of parts) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.d), mat);
+      mesh.position.set(0, p.y, 0);
+      pedestal.add(mesh);
+    }
+
+    pedestal.position.set(posX, 0, posZ);
+    castle.addWall(pedestal);
   }
 
   // ==========================================================
@@ -873,11 +898,49 @@ export function createCastle(
   
   createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1, materialMadeira);
   createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1, materialMadeira);
+  
+  // ==========================================================
+  // 8. ALTAR
+  // ==========================================================
+
+  const altarWidth = 1;
+  const altarDepth = 1;
+  const altarHeight = 1.5;
+  createPedestals(5, -5, altarWidth, altarDepth, altarHeight);
+  createPedestals(-5, 5, altarWidth, altarDepth, altarHeight);
+  createPedestals(5, 5, altarWidth, altarDepth, altarHeight);
+  createPedestals(-5, -5, altarWidth, altarDepth, altarHeight);
+
+
   return castle;
 }
 
 export function createGround(scene) {
-  const plane = createGroundPlaneXZ(500, 500);
-  scene.add(plane);
-  return plane;
+  // Chão
+  const planeGeo = new THREE.BoxGeometry(500, 0.5, 500);
+  const fullPlaneMesh = new THREE.Mesh(planeGeo, materialGrama);
+  fullPlaneMesh.position.set(0, -0.25, 0); // ocupa y de -0.75 a -0.25
+  fullPlaneMesh.updateMatrix();
+  fullPlaneMesh.matrixAutoUpdate = false;
+
+  const cutGeo = new THREE.CylinderGeometry(5, 5, 2, 32);
+  const cutMesh = new THREE.Mesh(cutGeo);
+  cutMesh.position.set(0, -0.25, 0);
+  cutMesh.updateMatrix();
+
+  const planeCSG = CSG.fromMesh(fullPlaneMesh);
+  const cutCSG = CSG.fromMesh(cutMesh);
+  const resultCSG = planeCSG.subtract(cutCSG);
+
+  const ground = CSG.toMesh(resultCSG, fullPlaneMesh.matrix, fullPlaneMesh.material);
+  scene.add(ground);
+
+  const altarGeo = new THREE.CylinderGeometry(5, 5, 0.5, 32);
+  const altar = new THREE.Mesh(altarGeo, materialAltar);
+  altar.position.set(0, -0.25, 0);
+  altar.matrixAutoUpdate = false;
+  altar.updateMatrix();
+  scene.add(altar);
+
+  return { ground, altar};
 }

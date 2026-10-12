@@ -19,9 +19,6 @@ let camera, camera1, camera2;
 let controls, orbitControls, pointerControls;
 const crosshair = document.getElementById("crosshair");
 
-let castle, ground;
-
-
 // Inicialização da Cena e Renderizador
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -173,8 +170,9 @@ window.addEventListener(
   false
 );
 
-ground = createGround(scene);
-castle = createCastle(scene);
+const { ground, altar } = createGround(scene);
+const castle = createCastle(scene);
+castle.floors.push(altar); 
 const structures = [castle];
 
 collisionSystem.prepare(structures, ground);

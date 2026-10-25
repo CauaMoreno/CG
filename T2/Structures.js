@@ -1,15 +1,19 @@
-import { setDefaultMaterial, createGroundPlaneXZ } from "../libs/util/util.js";
 import { CSG } from "../libs/other/CSGMesh.js"
 import * as THREE from "three";
 
 // ============================================================
 // ==========================MATERIAIS=========================
 // ============================================================
-const materialMuralha = setDefaultMaterial("gray");
-const materialTorre = setDefaultMaterial("dimgray");
-const materialMadeira = setDefaultMaterial("black");
-const materialAltar = setDefaultMaterial("darkred");
-const materialGrama = setDefaultMaterial("green");
+const materialMuralha = new THREE.MeshLambertMaterial({ color: "gray" });
+const materialTorre   = new THREE.MeshLambertMaterial({ color: "dimgray" });
+const materialMadeira = new THREE.MeshLambertMaterial({ color: "brown" });
+const materialAltar   = new THREE.MeshLambertMaterial({ color: "darkred" });
+const materialGrama   = new THREE.MeshLambertMaterial({ color: "green" });
+const invisibleMaterial = new THREE.MeshLambertMaterial({
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+});
 
 export class Structure {
   constructor(scene, position = new THREE.Vector3(0, 0, 0), rotation = 0) {
@@ -524,11 +528,6 @@ export function createCastle(
     const stepHeight = totalHeight / numSteps;
     const stepDepth = totalDepth / numSteps;
     const wallThickness = 0.01;
-    const invisibleMaterial = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    });
 
   const playerRadius = 0.8; // mesmo valor de CollisionSystem.playerRadius
   const railHeight = 0.9;   // altura do corrimão acima do degrau

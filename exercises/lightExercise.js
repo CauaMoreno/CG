@@ -7,6 +7,7 @@ import {initRenderer,
         onWindowResize, 
         createLightSphere} from "../libs/util/util.js";
 import {loadLightPostScene} from "../libs/util/utilScenes.js";
+import { AmbientLight } from '../build/three.core.js';
 
 let scene, renderer, camera, orbit;
 scene = new THREE.Scene();    // Create main scene
@@ -57,7 +58,28 @@ scene.add(spotLight);
 // Load default scene
 loadLightPostScene(scene)
 
-// initDefaultBasicLight(scene);  // removida: era a iluminação inicial
+// Luz ambiente
+let ambientColor = "rgb(255,255,255)"
+let ambientLight = new THREE.AmbientLight(ambientColor, 0.2)
+scene.add(ambientLight)
+
+// Spotlight
+let position = new THREE.Vector3(1.25, 3, 0);
+let lightColor = "yellow"
+let spotLight = new THREE.SpotLight(lightColor, 10.0);
+    spotLight.position.copy(position);
+    spotLight.castShadow = true;
+    spotLight.intensity = 10
+    spotLight.penumbra = 1.0
+    spotLight.target.position.set(1.25,0,0)
+scene.add(spotLight)
+scene.add(spotLight.target)
+
+//Cu
+let cuGeo = new THREE.BoxGeometry(0.5, 1, 0.5)
+let material = setDefaultMaterial()
+let cu = new THREE.Mesh(cuGeo, material)
+scene.add(cu)
 
 //---------------------------------------------------------
 // Load external objects

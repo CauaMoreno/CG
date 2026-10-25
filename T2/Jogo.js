@@ -19,9 +19,6 @@ let camera, camera1, camera2;
 let controls, orbitControls, pointerControls;
 const crosshair = document.getElementById("crosshair");
 
-let castle, ground;
-
-
 // Inicialização da Cena e Renderizador
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -36,8 +33,9 @@ camera1 = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera1.position.set(0, 0, -100);
+camera1.position.set(0, 5, -100);
 camera1.lookAt(new THREE.Vector3(0, 0, 0));
+
 scene.add(camera1);
 
 // Câmera 2 (Modo Espectador / Órbita)
@@ -59,6 +57,7 @@ camera = camera1;
 controls = pointerControls;
 
 const collisionSystem = new CollisionSystem(camera1, scene);
+collisionSystem.debug = true;
 
 // Só trava o ponteiro se o modo atual for o de primeira pessoa (Modo 1)
 renderer.domElement.addEventListener("click", function () {
@@ -159,7 +158,7 @@ function moveAnimate(delta) {
   if (moveRight) controls.moveRight(speed * delta);
   if (moveLeft) controls.moveRight(-speed * delta);
 
-  collisionSystem.calculateCollision(castle, controls, oldPosition, delta);
+  collisionSystem.calculateCollision(structures, ground, controls, oldPosition, delta);
 }
 
 // Redimensionamento de Janela
@@ -171,9 +170,12 @@ window.addEventListener(
   false
 );
 
-ground = createGround(scene);
-castle = createCastle(scene);
-castle.floors.push(ground);
+const { ground, altar } = createGround(scene);
+const castle = createCastle(scene);
+castle.floors.push(altar); 
+const structures = [castle];
+
+collisionSystem.prepare(structures, ground);
 
 const shootingSystem = new ShootingSystem(scene, camera1, castle);
 

@@ -1,13 +1,15 @@
 import { setDefaultMaterial, createGroundPlaneXZ } from "../libs/util/util.js";
+import { CSG } from "../libs/other/CSGMesh.js"
 import * as THREE from "three";
 
 // ============================================================
-// MATERIAIS
+// ==========================MATERIAIS=========================
 // ============================================================
-const materialMuralha = setDefaultMaterial("rgb(150,142,128)");
-const materialTorre = setDefaultMaterial("rgb(122,115,102)");
-const materialMadeira = setDefaultMaterial("rgb(92,61,33)");
-const materialSeteira = setDefaultMaterial("rgb(15,15,15)");
+const materialMuralha = setDefaultMaterial("gray");
+const materialTorre = setDefaultMaterial("dimgray");
+const materialMadeira = setDefaultMaterial("black");
+const materialAltar = setDefaultMaterial("darkred");
+const materialGrama = setDefaultMaterial("green");
 
 export class Structure {
   constructor(scene, position = new THREE.Vector3(0, 0, 0), rotation = 0) {
@@ -80,8 +82,8 @@ export function createCastle(
   // Dimensões gerais
   const wallHeight = 20;
   const wallThickness = 1.0;
-  const castleWidth = 70; // Eixo X
-  const castleDepth = 80; // Eixo Z
+  const castleWidth = 70;
+  const castleDepth = 80;
 
   const sTowerSize = castleDepth/6;
   const towerHeight = 30;
@@ -107,7 +109,7 @@ export function createCastle(
   }
 
   // ==========================================================
-  // FUNÇÕES AUXILIARES
+  // ====================FUNÇÕES AUXILIARES====================
   // ==========================================================
 
   function createWall(
@@ -126,7 +128,6 @@ export function createCastle(
     mesh.rotation.y = rotY * (Math.PI / 180);
 
     if (addAmeias) {
-      // Adiciona ameias
       const ameiaHeight = 0.8;
       const ameiaDepth = 1.0;
       const ameiasQTD = Math.floor(width / 2);
@@ -168,45 +169,26 @@ export function createCastle(
     return mesh;
   }
 
-  function createArch(radius, thickness, mat, jambH = 0, segments = 24) {
-    const r0 = radius - 0.01; // margem mínima: evita z-fighting com os pilares
-    const r1 = radius + radius * 0.42; // borda externa da moldura
-    const h = (thickness * 1.05) / 2; // meia espessura (relevo de 5%, como antes)
+  function doorBodyCSG(width, height, thickness) {
+    const halfWidth = width / 2;
+    const straightHeight = height - halfWidth;
 
-    // Perfil retangular. Os cantos duplicados mantêm as arestas vivas (normais planas)
-    const P = (x, y) => new THREE.Vector2(x, y);
-    const profile = [
-      P(r0, -h),
-      P(r1, -h),
-      P(r1, -h),
-      P(r1, h),
-      P(r1, h),
-      P(r0, h),
-      P(r0, h),
-      P(r0, -h),
-    ];
-
-    const group = new THREE.Group();
-
-    // Meia-coroa: metade do círculo, deitada para ficar de pé no plano XY
-    const ring = new THREE.Mesh(
-      new THREE.LatheGeometry(profile, segments, Math.PI / 2, Math.PI),
-      mat,
+    const retMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(width, straightHeight, thickness),
     );
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
+    retMesh.position.set(0, straightHeight / 2, 0);
+    retMesh.matrixAutoUpdate = false;
+    retMesh.updateMatrix();
 
-    // Batentes retos, do arranque até o chão
-    if (jambH > 0) {
-      const jambGeo = new THREE.BoxGeometry(r1 - r0, jambH, h * 2);
-      for (const s of [-1, 1]) {
-        const jamb = new THREE.Mesh(jambGeo, mat);
-        jamb.position.set((s * (r0 + r1)) / 2, -jambH / 2, 0);
-        group.add(jamb);
-      }
-    }
+    const arcMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(halfWidth, halfWidth, thickness, 32),
+    );
+    arcMesh.position.set(0, straightHeight, 0);
+    arcMesh.rotation.x = Math.PI / 2;
+    arcMesh.matrixAutoUpdate = false;
+    arcMesh.updateMatrix();
 
-    return group;
+    return CSG.fromMesh(retMesh).union(CSG.fromMesh(arcMesh));
   }
 
   function createFrontDoor(
@@ -218,71 +200,36 @@ export function createCastle(
     rotY = 0,
     mat = materialMadeira,
   ) {
-    const group = new THREE.Group();
-
     const halfWidth = width / 2;
-    const straightHeight = height - halfWidth;
+    const body = doorBodyCSG(width, height, thickness);
 
-    // FOLHA ESQUERDA
-    // Local: x=0 é a dobradiça (borda externa), x=halfWidth é o centro
-    const leftShape = new THREE.Shape();
-    leftShape.moveTo(0, 0); // base da dobradiça
-    leftShape.lineTo(0, straightHeight); // sobe reto até a linha de arranque do arco
-    leftShape.absarc(
-      halfWidth,
-      straightHeight, // centro do arco = ponto central da porta, na altura de arranque
-      halfWidth, // raio = metade da largura da folha
-      Math.PI,
-      Math.PI / 2, // varre da dobradiça até o topo central
-      true, // sentido horário
-    );
-    leftShape.lineTo(halfWidth, 0); // desce reto no corte central até a base
-    leftShape.lineTo(0, 0); // fecha na dobradiça
+    function makeLeaf(side) {
+      const cutMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(halfWidth, height * 2, thickness * 2),
+      );
+      cutMesh.position.set((side * halfWidth) / 2, height, 0);
+      cutMesh.matrixAutoUpdate = false;
+      cutMesh.updateMatrix();
 
-    const leftGeometry = new THREE.ExtrudeGeometry(leftShape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    leftGeometry.translate(0, 0, -thickness / 2);
-    const leftDoor = new THREE.Mesh(leftGeometry, mat);
-
-    // FOLHA DIREITA (espelhada)
-    // Local: x=0 é a dobradiça, x=-halfWidth é o centro
-    const rightShape = new THREE.Shape();
-    rightShape.moveTo(0, 0);
-    rightShape.lineTo(0, straightHeight);
-    rightShape.absarc(
-      -halfWidth,
-      straightHeight,
-      halfWidth,
-      0,
-      Math.PI / 2,
-      false, // sentido anti-horário (espelhado)
-    );
-    rightShape.lineTo(-halfWidth, 0);
-    rightShape.lineTo(0, 0);
-
-    const rightGeometry = new THREE.ExtrudeGeometry(rightShape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    rightGeometry.translate(0, 0, -thickness / 2);
-    const rightDoor = new THREE.Mesh(rightGeometry, mat);
+      const leaf = CSG.toMesh(
+        body.intersect(CSG.fromMesh(cutMesh)),
+        new THREE.Matrix4(),
+        mat,
+      );
+      leaf.geometry.translate(-side * halfWidth, 0, 0);
+      return leaf;
+    }
 
     const leftPivot = new THREE.Group();
     leftPivot.position.set(posX - halfWidth, 0, posZ);
-    leftDoor.position.set(0, 0, 0);
-    leftPivot.add(leftDoor);
+    leftPivot.add(makeLeaf(-1));
 
     const rightPivot = new THREE.Group();
     rightPivot.position.set(posX + halfWidth, 0, posZ);
-    rightDoor.position.set(0, 0, 0);
-    rightPivot.add(rightDoor);
+    rightPivot.add(makeLeaf(1));
 
-    group.add(leftPivot);
-    group.add(rightPivot);
+    const group = new THREE.Group();
+    group.add(leftPivot, rightPivot);
     group.rotation.y = rotY;
 
     castle.addDoor(
@@ -306,31 +253,21 @@ export function createCastle(
     mat = materialMadeira,
     openAngle = -Math.PI / 2,
   ) {
-    const straightHeight = height - width / 2;
     const halfWidth = width / 2;
 
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(0, straightHeight);
-    shape.absarc(halfWidth, straightHeight, halfWidth, Math.PI, 0, true);
-    shape.lineTo(width, 0);
-    shape.lineTo(0, 0);
-
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: thickness,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    geometry.translate(0, 0, -thickness / 2);
-    const doorMesh = new THREE.Mesh(geometry, mat);
+    const doorMesh = CSG.toMesh(
+      doorBodyCSG(width, height, thickness),
+      new THREE.Matrix4(),
+      mat,
+    );
+    doorMesh.geometry.translate(halfWidth, 0, 0);
 
     const pivot = new THREE.Group();
-    pivot.position.set(-halfWidth, 0, 0); // deslocamento LOCAL, antes da rotação
-    doorMesh.position.set(0, 0, 0);
+    pivot.position.set(-halfWidth, 0, 0);
     pivot.add(doorMesh);
 
     const group = new THREE.Group();
-    group.position.set(posX, 0, posZ); // centro real da porta no mundo
+    group.position.set(posX, 0, posZ);
     group.rotation.y = rotY;
     group.add(pivot);
 
@@ -355,37 +292,44 @@ export function createCastle(
     doorMaterial = mat,
     addAmeias = true,
   ) {
-    const rad = (rotY * Math.PI) / 180;
-    const cos = Math.cos(rad),
-      sin = Math.sin(rad);
-    const side = (wallW - doorW) / 2;
-    const off = (doorW + side) / 2;
-    const r = doorW / 2;
+    const wallGeo = new THREE.BoxGeometry(wallW, wallH, thickness);
+    const wallMesh = new THREE.Mesh(wallGeo, mat);
+      wallMesh.position.set(posX, wallH/2, posZ);
+      wallMesh.matrixAutoUpdate = false;
+      wallMesh.updateMatrix();
+    const wallCSG = new CSG.fromMesh(wallMesh);
 
-    const part = (w, h, dx, y) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, thickness), mat);
-      m.position.set(posX + dx * cos, y + h / 2, posZ - dx * sin);
-      m.rotation.y = rad;
-      castle.addWall(m);
-    };
+    const arcGeo = new THREE.CylinderGeometry(doorW/2, doorW/2, thickness, 32);
+    const arcMesh = new THREE.Mesh(arcGeo, mat);
+      arcMesh.position.set(posX, doorH-doorW/2, posZ);
+      arcMesh.rotation.x = Math.PI / 2;
+      arcMesh.matrixAutoUpdate = false;
+      arcMesh.updateMatrix();
+    const arcCSG = new CSG.fromMesh(arcMesh);
 
-    part(side, wallH, -off, 0);
-    part(side, wallH, off, 0);
-    part(doorW, wallH - doorH, 0, doorH);
-
-    // Arco
-    const arch = createArch(r, thickness, doorMaterial, doorH - r);
-    arch.position.set(posX, doorH - r, posZ);
-    arch.rotation.y = rad;
-    castle.addDecor(arch);
-
+    const retGeo = new THREE.BoxGeometry(doorW, doorH-doorW/2, thickness, 32);
+    const retMesh = new THREE.Mesh(retGeo, mat);
+      retMesh.position.set(posX, (doorH-doorW/2)/2, posZ);
+      retMesh.matrixAutoUpdate = false;
+      retMesh.updateMatrix();
+    const retCSG = new CSG.fromMesh(retMesh);
+    
+    const doorCSG = retCSG.union(arcCSG);
+    const wallWithDoorCSG = wallCSG.subtract(doorCSG);
+    
+    const wallWithDoorMesh = CSG.toMesh(wallWithDoorCSG, wallMesh.matrix, mat);
+    wallWithDoorMesh.rotateY(rotY * Math.PI / 180);
+    castle.addWall(wallWithDoorMesh);
+    
+    
     if (addAmeias) {
       const ameiaH = 0.8;
       const ameiaD = 1.0;
       const qtd = Math.max(1, Math.floor(wallW / 2));
       const gap = wallW / qtd;
       const ameiaGeo = new THREE.BoxGeometry(gap * 0.75, ameiaH, ameiaD);
-
+      const rad = (rotY * Math.PI) / 180;
+      
       const ameias = new THREE.Group();
       ameias.position.set(posX, wallH, posZ);
       ameias.rotation.y = rad;
@@ -442,31 +386,28 @@ export function createCastle(
     mat = materialTorre,
   ) {
     const innerRadius = outerRadius - depth;
+    const innerHeight = height - depth;
 
-    // Cria as paredes da torre
-    const towerProfile = [
-      new THREE.Vector2(outerRadius, 0),
-      new THREE.Vector2(outerRadius, height),
-      new THREE.Vector2(innerRadius, height),
-      new THREE.Vector2(innerRadius, 0),
-    ];
+    // Cria malhas externa e interna da torre
+    const outGeo = new THREE.CylinderGeometry(outerRadius, outerRadius, height, segments);
+    const outMesh = new THREE.Mesh(outGeo, mat);
+      outMesh.position.set(posX, height/2, posZ);
+      outMesh.matrixAutoUpdate = false;
+      outMesh.updateMatrix();
+    const outCSG = new CSG.fromMesh(outMesh);
 
-    const geo = new THREE.LatheGeometry(towerProfile, segments);
-    const wall = new THREE.Mesh(geo, mat);
-    wall.position.set(posX, 0, posZ);
-    castle.addDecor(wall);
+    const inGeo = new THREE.CylinderGeometry(innerRadius, innerRadius, innerHeight, segments);
+    const inMesh = new THREE.Mesh(inGeo, mat);
+      inMesh.position.set(posX, height/2, posZ);
+      inMesh.matrixAutoUpdate = false;
+      inMesh.updateMatrix();
+    const inCSG = new CSG.fromMesh(inMesh);
 
-    // Cria o topo da torre
-    const geoTop = new THREE.CylinderGeometry(
-      outerRadius,
-      outerRadius,
-      depth,
-      16,
-    );
-    const top = new THREE.Mesh(geoTop, mat);
-    top.position.set(0, height-2, 0);
-    castle.addFloor(top);
-    wall.add(top);
+    // Cria a torre usando CSG para subtrair o interior
+    const towerCSG = outCSG.subtract(inCSG);
+    const towerMesh = CSG.toMesh(towerCSG, outMesh.matrix, mat);
+
+    castle.addDecor(towerMesh);
 
     // Adiciona ameias
     const ameiaHeight = 0.8;
@@ -485,9 +426,9 @@ export function createCastle(
         ameiaDepth,
       );
       const meshAmeia = new THREE.Mesh(geoAmeia, mat);
-      meshAmeia.position.set(x, ameiaHeight/2+height, z);
+      meshAmeia.position.set(x, ameiaHeight/2+height/2, z);
       meshAmeia.rotation.y = -angle + Math.PI / 2;
-      wall.add(meshAmeia);
+      towerMesh.add(meshAmeia);
     }
 
     const worldPos = localToWorldXZ(posX, posZ);
@@ -630,7 +571,7 @@ export function createCastle(
     backWall.position.set(
       startX,
       startY + backHeight / 2,
-      startZ + directionZ * (totalDepth + playerRadius + wallThickness / 2),
+      startZ + directionZ * (totalDepth + wallThickness / 2),
     );
     castle.addWall(backWall);
   }
@@ -693,7 +634,7 @@ export function createCastle(
   castle.addRamp(ramp);
   }
 
-  function createArrowSlit(posX, posZ, rotY, midY, mat = materialSeteira) {
+  function createArrowSlit(posX, posZ, rotY, midY, mat = materialMadeira) {
     const geo = new THREE.BoxGeometry(0.3, 2.2, 0.3);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(posX, midY, posZ);
@@ -707,14 +648,38 @@ export function createCastle(
     posX,
     posZ,
     count = 4,
-    mat = materialSeteira,
+    mat = materialMadeira,
   ) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.PI / count;
-      const x = posX + Math.cos(angle) * (radius + 0.1);
-      const z = posZ + Math.sin(angle) * (radius + 0.1);
-      createArrowSlit(x, z, -angle + Math.PI / 2, midY, mat);
+      const x = posX + Math.cos(angle) * (cornerRadius + 0.1);
+      const z = posZ + Math.sin(angle) * (cornerRadius + 0.1);
+      createArrowSlit(x, z, -angle + Math.PI / 2, cornerHeight, mat);
     }
+  }
+
+  function createPedestals(posX, posZ, width, depth, height, mat = materialMadeira) {
+    const baseH = height * 0.15;
+    const capH = height * 0.1;
+    const shaftH = height - baseH - capH;
+
+    const pedestal = new THREE.Group();
+
+    // base e tampo são um pouco maiores que o fuste
+    const parts = [
+      { w: width,        d: depth,        h: baseH,  y: baseH / 2 },
+      { w: width * 0.8,  d: depth * 0.8,  h: shaftH, y: baseH + shaftH / 2 },
+      { w: width,        d: depth,        h: capH,   y: baseH + shaftH + capH / 2 },
+    ];
+
+    for (const p of parts) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, p.d), mat);
+      mesh.position.set(0, p.y, 0);
+      pedestal.add(mesh);
+    }
+
+    pedestal.position.set(posX, 0, posZ);
+    castle.addWall(pedestal);
   }
 
   // ==========================================================
@@ -902,8 +867,8 @@ export function createCastle(
   createFloor(sTowerSize-platformDepth+wallThickness-1, halfD, platformHeight, 2*platformDepth-halfW+0.5, platformY, halfD/2-wallThickness/2);
   createFloor(platformDepth+1, halfD-cornerRadius-sTowerSize/2-platformY/2, platformHeight, platformDepth/2-halfW+0.5, platformY, sTowerSize/2+platformY/2+(halfD-cornerRadius-sTowerSize/2-platformY/4)/2);
 
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1, materialMadeira, false);
-  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1, materialMadeira, false);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, 2*wallThickness-halfW, platformY/2, sTowerSize/2+platformY/2, -1, materialMadeira);
+  createStairs(platformDepth, platformY/2+platformHeight/2, platformY/2, platformY, sTowerSize-halfW-2*wallThickness, 0, sTowerSize/2, 1, materialMadeira);
 
   // ==========================================================
   // 7. CONSTRUÇÃO DO ARMAZEM
@@ -931,13 +896,51 @@ export function createCastle(
   createFloor(warehouseWidth, warehouseDepth, platformHeight, halfW-warehouseWidth/2-wallThickness/2, platformY, -warehouseDepth/2+wallThickness/4);
   createFloor(offset, platformDepth-wallThickness, platformHeight, halfW+offset/2-wallThickness/2, platformY,-halfD+firstWallWidth+cornerRadius+platformDepth/2, 0);
   
-  createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1, materialMadeira, false);
-  createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1, materialMadeira, false);
+  createStairs(platformDepth-wallThickness*2, platformY/2, platformY/2+0.1, platformY, halfW+offset-platformDepth/2, platformY/2+platformHeight/2, -sTowerSize, -1, materialMadeira);
+  createStairs(platformDepth-wallThickness*2, platformY/2+platformHeight/2, platformY/2, platformY, halfW+platformDepth/2-wallThickness*0.5, 0, -sTowerSize-platformY/2, 1, materialMadeira);
+  
+  // ==========================================================
+  // 8. ALTAR
+  // ==========================================================
+
+  const altarWidth = 1;
+  const altarDepth = 1;
+  const altarHeight = 1.5;
+  createPedestals(5, -5, altarWidth, altarDepth, altarHeight);
+  createPedestals(-5, 5, altarWidth, altarDepth, altarHeight);
+  createPedestals(5, 5, altarWidth, altarDepth, altarHeight);
+  createPedestals(-5, -5, altarWidth, altarDepth, altarHeight);
+
+
   return castle;
 }
 
 export function createGround(scene) {
-  const plane = createGroundPlaneXZ(500, 500);
-  scene.add(plane);
-  return plane;
+  // Chão
+  const planeGeo = new THREE.BoxGeometry(500, 0.5, 500);
+  const fullPlaneMesh = new THREE.Mesh(planeGeo, materialGrama);
+  fullPlaneMesh.position.set(0, -0.25, 0); // ocupa y de -0.75 a -0.25
+  fullPlaneMesh.updateMatrix();
+  fullPlaneMesh.matrixAutoUpdate = false;
+
+  const cutGeo = new THREE.CylinderGeometry(5, 5, 2, 32);
+  const cutMesh = new THREE.Mesh(cutGeo);
+  cutMesh.position.set(0, -0.25, 0);
+  cutMesh.updateMatrix();
+
+  const planeCSG = CSG.fromMesh(fullPlaneMesh);
+  const cutCSG = CSG.fromMesh(cutMesh);
+  const resultCSG = planeCSG.subtract(cutCSG);
+
+  const ground = CSG.toMesh(resultCSG, fullPlaneMesh.matrix, fullPlaneMesh.material);
+  scene.add(ground);
+
+  const altarGeo = new THREE.CylinderGeometry(5, 5, 0.5, 32);
+  const altar = new THREE.Mesh(altarGeo, materialAltar);
+  altar.position.set(0, -0.25, 0);
+  altar.matrixAutoUpdate = false;
+  altar.updateMatrix();
+  scene.add(altar);
+
+  return { ground, altar};
 }

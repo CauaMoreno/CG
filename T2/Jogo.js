@@ -138,6 +138,11 @@ function movementControls(key, value) {
         camera.updateProjectionMatrix();
       }
       break;
+    case 86: // Tecla V
+      if (value) {
+        lightingSystem.changeLighting(); // alterna entre dia e noite
+      }
+      break;
   }
 }
 

@@ -3,7 +3,6 @@ import { PointerLockControls } from "../build/jsm/controls/PointerLockControls.j
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
 import {
   initRenderer,
-  initDefaultBasicLight,
   setDefaultMaterial,
   onWindowResize,
 } from "../libs/util/util.js";
@@ -11,8 +10,9 @@ import { createGround, createCastle } from "./Structures.js";
 import { CollisionSystem } from "./CollisionSystem.js";
 import { animateDoors } from "./Animations.js";
 import { ShootingSystem } from "./ShootingSystem.js";
+import { LightingSystem } from "./LightingSystem.js";
 
-let scene, renderer, material, light;
+let scene, renderer, material;
 let mode = 1;
 
 let camera, camera1, camera2;
@@ -24,7 +24,6 @@ scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 renderer = initRenderer();
 material = setDefaultMaterial();
-light = initDefaultBasicLight(scene);
 
 // Câmera 1 (Primeira Pessoa)
 camera1 = new THREE.PerspectiveCamera(
@@ -178,6 +177,7 @@ const structures = [castle];
 collisionSystem.prepare(structures, ground);
 
 const shootingSystem = new ShootingSystem(scene, camera1, castle);
+const lightingSystem = new LightingSystem(scene, castle);
 
 // Loop Único de Renderização
 const clock = new THREE.Clock();

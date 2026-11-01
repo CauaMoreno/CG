@@ -115,20 +115,6 @@ export class LightingSystem {
     return light;
   }
 
-  // Direcional fraca, sem sombra, vinda do lado oposto
-  createFillLight(color, intensity, mainDirection) {
-    const center = this.sceneBox.getCenter(new THREE.Vector3());
-    const dist = 100;
-    const light = new THREE.DirectionalLight(color, intensity);
-    light.position
-      .copy(center)
-      .addScaledVector(mainDirection.clone().normalize().negate(), dist);
-    light.target.position.copy(center);
-    light.castShadow = false;
-    this.scene.add(light.target);
-    return light;
-  }
-
   // ---------- Troca de horário ----------
 
   changeLighting() {
@@ -138,6 +124,7 @@ export class LightingSystem {
       this.lighting = "night";
     } else {
       this.changeLightingToDay();
+
       this.lighting = "day";
     }
   }
@@ -148,8 +135,6 @@ export class LightingSystem {
     this.castle.light = this.createShadowLight(0xfff4d6, 1.8, dir);
     this.scene.add(this.castle.light);
 
-    this.fillLight = this.createFillLight(0xbfd9ff, 0.8, dir);
-    this.scene.add(this.fillLight);
 
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     this.scene.add(this.ambientLight);
@@ -162,9 +147,6 @@ export class LightingSystem {
     const dir = new THREE.Vector3(0.7, 1.0, -0.6);
     this.castle.light = this.createShadowLight(0xaec6ff, 0.9, dir);
     this.scene.add(this.castle.light);
-
-    this.fillLight = this.createFillLight(0x334466, 0.4, dir);
-    this.scene.add(this.fillLight);
 
     this.ambientLight = new THREE.AmbientLight(0x6677aa, 0.6);
     this.scene.add(this.ambientLight);

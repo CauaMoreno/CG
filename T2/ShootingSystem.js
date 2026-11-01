@@ -182,7 +182,7 @@ export class ShootingSystem {
 
     const bowString = new THREE.Line(
       stringGeometry,
-      new THREE.LineBasicMaterial({
+      new THREE.MeshLambertMaterial({
         color: 0xd6c5a0
       })
     );

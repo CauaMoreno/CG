@@ -2,10 +2,11 @@
 import * as THREE from "three";
 
 export class ShootingSystem {
-  constructor(scene, camera, castle) {
+  constructor(scene, camera, castle, enemySystem) {
     this.scene = scene;
     this.camera = camera;
     this.castle = castle;
+    this.enemySystem = enemySystem;
 
     this.projectiles = []; // Vetor para armazenar os projéteis ativos
 
@@ -391,7 +392,8 @@ export class ShootingSystem {
         const objects = [
           ...this.castle.walls,
           ...this.castle.floors,
-          ...this.castle.ramps
+          ...this.castle.ramps,
+          ...this.enemySystem.raycastTargets
         ];
 
         const intersections = this.raycaster.intersectObjects(
@@ -400,6 +402,14 @@ export class ShootingSystem {
         );
 
         if (intersections.length > 0) {
+          const hit = intersections[0];
+
+          const enemy = hit.object.userData.enemy;
+
+          if(enemy) {
+            this.enemySystem.damageEnemy(enemy, 1);
+          }
+          
           this.removeProjectile(i);
           continue;
         }

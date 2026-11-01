@@ -11,6 +11,7 @@ import { CollisionSystem } from "./CollisionSystem.js";
 import { animateDoors } from "./Animations.js";
 import { ShootingSystem } from "./ShootingSystem.js";
 import { LightingSystem } from "./LightingSystem.js";
+import { EnemySystem } from "./Enemies.js";
 
 let scene, renderer, material;
 let mode = 1;
@@ -181,7 +182,9 @@ const structures = [castle];
 
 collisionSystem.prepare(structures, ground);
 
-const shootingSystem = new ShootingSystem(scene, camera1, castle);
+const enemySystem = new EnemySystem(scene, camera1);
+
+const shootingSystem = new ShootingSystem(scene, camera1, castle, enemySystem);
 const lightingSystem = new LightingSystem(scene, castle);
 
 // Loop Único de Renderização
@@ -198,6 +201,8 @@ function render() {
   } else if (mode === 2) {
     orbitControls.update();
   }
+
+  enemySystem.update(delta, camera1.position, camera);
 
   renderer.render(scene, camera);
 }

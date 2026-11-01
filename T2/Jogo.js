@@ -11,6 +11,7 @@ import { CollisionSystem } from "./CollisionSystem.js";
 import { animateDoors } from "./Animations.js";
 import { ShootingSystem } from "./ShootingSystem.js";
 import { LightingSystem } from "./LightingSystem.js";
+import { EnemySystem } from "./EnemySystem.js";
 
 let scene, renderer, material;
 let mode = 1;
@@ -141,7 +142,11 @@ function movementControls(key, value) {
     case 86: // Tecla V
       if (value) {
         lightingSystem.changeLighting(); // alterna entre dia e noite
+        enemySystem.setNightMode(lightingSystem.lighting === "night"); // alterna entre dia e noite
       }
+      break;
+    case 32: // Tecla Espaço
+      collisionSystem.jump();
       break;
   }
 }
@@ -181,8 +186,10 @@ const structures = [castle];
 
 collisionSystem.prepare(structures, ground);
 
-const shootingSystem = new ShootingSystem(scene, camera1, castle);
-const lightingSystem = new LightingSystem(scene, castle);
+const enemySystem = new EnemySystem(scene, camera1);
+
+const shootingSystem = new ShootingSystem(scene, camera1, castle, enemySystem);
+const lightingSystem = new LightingSystem(scene, castle, shootingSystem);
 
 console.log(lightingSystem.sceneBox.getSize(new THREE.Vector3()));
 
@@ -200,6 +207,8 @@ function render() {
   } else if (mode === 2) {
     orbitControls.update();
   }
+
+  enemySystem.update(delta, camera1.position, camera);
 
   renderer.render(scene, camera);
 }

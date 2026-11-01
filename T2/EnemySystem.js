@@ -222,17 +222,21 @@ export class EnemySystem {
       const clonedMaterials = originalMaterials.map((material) => {
         if (!material) return material;
 
-        const cloned = material.clone();
+        const lambert = new THREE.MeshLambertMaterial({
+          color: material.color ? material.color.clone() : 0xffffff,
 
-        cloned.transparent = true;
-        cloned.opacity = 1;
+          map: material.map || null,
 
-        // Evita que materiais transparentes sejam descartados antes de terminar o fade
-        cloned.depthWrite = true;
+          transparent: true,
+          opacity: 1,
 
-        enemy.fadeMaterials.push(cloned);
+          side: material.side,
+          depthWrite: true
+        });
 
-        return cloned;
+        enemy.fadeMaterials.push(lambert);
+
+        return lambert;
       });
 
       child.material = Array.isArray(child.material)
@@ -281,9 +285,8 @@ export class EnemySystem {
   }
 
   createMaterial(color, options = {}) {
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshLambertMaterial({
       color,
-      roughness: 0.8,
       transparent: true,
       ...options
     });

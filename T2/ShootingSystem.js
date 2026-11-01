@@ -7,15 +7,15 @@ export class ShootingSystem {
     this.camera = camera;
     this.castle = castle;
 
-    this.projectiles = [];
+    this.projectiles = []; // Vetor para armazenar os projéteis ativos
 
     // Configurações dos disparos
     this.projectileSpeed = 60;
     this.maxDistance = 100;
-    this.fireRate = 0.25;
+    this.fireRate = 0.25; // Tempo mínimo entre disparos em segundos
     this.timeSinceLastShot = this.fireRate;
 
-    // Criação dos assets
+    // Criação dos assets da besta e do dardo
     this.createWeapon();
     this.createDartGeometry();
 
@@ -27,20 +27,17 @@ export class ShootingSystem {
     this.loadDart();
 
     // Vetores reutilizáveis
-    this.direction = new THREE.Vector3();
-    this.muzzlePosition = new THREE.Vector3();
-    this.nextPosition = new THREE.Vector3();
-    this.movement = new THREE.Vector3();
-    this.localMuzzle = new THREE.Vector3(0.35, -0.28, -1.15);
-    this.forward = new THREE.Vector3(0, 0, 1);
+    this.direction = new THREE.Vector3(); // Direção do disparo
+    this.muzzlePosition = new THREE.Vector3(); // Posição do cano da besta
+    this.nextPosition = new THREE.Vector3(); // Próxima posição do projétil
+    this.movement = new THREE.Vector3(); // Movimento do projétil
+    this.localMuzzle = new THREE.Vector3(0.35, -0.28, -1.15); // Posição do cano da besta em relação à câmera
+    this.forward = new THREE.Vector3(0, 0, 1); // Vetor de direção para frente +Z
 
-    this.raycaster = new THREE.Raycaster();
+    this.raycaster = new THREE.Raycaster(); // Raycaster para detecção de colisões
   }
 
-  // ==========================================
-  // MODELO DA BESTA
-  // ==========================================
-
+  // Criação do modelo da besta
   createWeapon() {
     this.weapon = new THREE.Group();
 
@@ -210,10 +207,7 @@ export class ShootingSystem {
     this.camera.add(this.weapon);
   }
 
-  // ==========================================
-  // MODELO DO DARDO
-  // ==========================================
-
+  // Criação do modelo do dardo
   createDartGeometry() {
     this.dartMaterial = {
       shaft: new THREE.MeshStandardMaterial({
@@ -265,7 +259,7 @@ export class ShootingSystem {
     ring.position.z = 0.34;
     this.dartGeometry.add(ring);
 
-    // Penas estabilizadoras
+    // Penas
     for (let i = 0; i < 3; i++) {
       const feather = new THREE.Mesh(
         new THREE.BoxGeometry(0.015, 0.12, 0.19),
@@ -305,7 +299,6 @@ export class ShootingSystem {
     dart.position.set(0, 0.15, -0.05);
 
     // A ponta do modelo originalmente aponta para +Z.
-    // Giramos 180 graus para apontar para -Z.
     dart.rotation.set(0, Math.PI, 0);
 
     this.weapon.add(dart);
@@ -314,10 +307,7 @@ export class ShootingSystem {
     this.isLoaded = true;
   }
 
-  // ==========================================
-  // DISPARO
-  // ==========================================
-
+  // Função para disparar o dardo
   shoot() {
     // Só dispara se houver um dardo carregado
     if (!this.isLoaded || !this.loadedDart) {
@@ -365,10 +355,7 @@ export class ShootingSystem {
     this.projectiles.push(dart);
   }
 
-  // ==========================================
-  // ATUALIZAÇÃO DOS PROJÉTEIS
-  // ==========================================
-
+  // Atualiza a posição dos projéteis e verifica colisões
   update(delta) {
     this.timeSinceLastShot += delta;
 
@@ -430,17 +417,13 @@ export class ShootingSystem {
     }
   }
 
-  // ==========================================
-  // REMOÇÃO DOS PROJÉTEIS
-  // ==========================================
-
+  // Remove o projétil da cena e do vetor de projéteis ativos
   removeProjectile(index) {
     const projectile = this.projectiles[index];
 
     this.scene.remove(projectile);
 
-    // Os modelos compartilham geometrias e materiais.
-    // Portanto, não destruímos esses recursos aqui.
+    // Os modelos compartilham geometrias e materiais, então não é necessário descartar explicitamente
 
     this.projectiles.splice(index, 1);
   }

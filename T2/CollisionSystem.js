@@ -1,13 +1,9 @@
 import * as THREE from "three";
 import { Octree } from "../build/jsm/math/Octree.js";
-import { Capsule } from "../build/jsm/math//Capsule.js";
-
+import { Capsule } from "../build/jsm/math/Capsule.js";
 
 export class CollisionSystem {
-  constructor(camera, scene) {
-    this.camera = camera;
-    this.scene = scene;
-
+  constructor() {
     // Jogador (a câmera fica na altura dos olhos)
     this.playerRadius = 0.8;
     this.playerHeight = 2.0;
@@ -22,7 +18,6 @@ export class CollisionSystem {
     this.maxIterations = 4; // iterações de resolução por sub-passo (cantos)
     this.maxSubSteps = 8; // limite de sub-passos por frame (evita atravessar paredes)
     this.groundSnapDistance = 0.35; // "cola" no chão ao descer rampas/degraus
-    this.cylinderSegments = 32; // resolução dos cilindros auxiliares
     this.maxDelta = 1 / 30; // limite do delta por frame (evita saltos após travadas)
     this.maxFallSpeed = 40; // velocidade máxima de queda
     this.debug = false; // true: imprime no console o que entrou na Octree
@@ -62,14 +57,10 @@ export class CollisionSystem {
     return Array.isArray(value) ? value : [value];
   }
 
+  /** Muda quando entram ou saem objetos de colisão; dispara a reconstrução. */
   _computeSignature(structures, grounds) {
     const parts = structures.map((s) =>
-      [
-        s.walls.length,
-        s.floors.length,
-        s.ramps.length,
-        s.cylinders.length,
-      ].join(","),
+      [s.walls.length, s.floors.length, s.ramps.length].join(","),
     );
     parts.push(grounds.map((g) => g.uuid).join(","));
     return parts.join("|");
@@ -106,7 +97,6 @@ export class CollisionSystem {
       for (const obj of structure.walls) this._addObject(octree, obj, "walls");
       for (const obj of structure.floors) this._addObject(octree, obj, "floors");
       for (const obj of structure.ramps) this._addObject(octree, obj, "ramps");
-      for (const cyl of structure.cylinders) this._addCylinder(octree, cyl);
     }
 
     for (const ground of grounds) this._addObject(octree, ground, "ground");
@@ -119,24 +109,24 @@ export class CollisionSystem {
 
   _printStats(octree) {
     const { min, max } = octree.box;
+    const round = (v) => +v.toFixed(2);
     console.log(
       "[Colisão] caixa da Octree:",
-      min.toArray().map((v) => +v.toFixed(2)),
-      max.toArray().map((v) => +v.toFixed(2)),
+      min.toArray().map(round),
+      max.toArray().map(round),
     );
+
     for (const [label, s] of Object.entries(this._stats)) {
       const avgNormalY = s.triangles > 0 ? s.normalYSum / s.triangles : 0;
       console.log(
-        "[Colisão] " + label + ": " + s.triangles + " triângulos, " +
-          s.skipped + " ignorados (NaN), " + s.filtered +
-          " descartados (só face de cima), normal Y média = " +
-          avgNormalY.toFixed(2),
+        `[Colisão] ${label}: ${s.triangles} triângulos, ${s.skipped} ignorados (NaN), ` +
+          `${s.filtered} descartados (só face de cima), normal Y média = ${avgNormalY.toFixed(2)}`,
       );
     }
   }
 
   /** Adiciona os triângulos reais de todas as malhas de um objeto. */
-  _addObject(octree, root, label = "other") {
+  _addObject(octree, root, label) {
     root.traverse((child) => {
       if (!child.isMesh || child.userData.noCollision) return;
       const matrix = this._computeWorldMatrix(child);
@@ -169,33 +159,19 @@ export class CollisionSystem {
     return world;
   }
 
-  /** Cria um cilindro auxiliar (só para colisão, não vai para a cena). */
-  _addCylinder(octree, cyl) {
-    const baseY = cyl.baseY ?? 0;
-    const geometry = new THREE.CylinderGeometry(
-      cyl.outerRadius,
-      cyl.outerRadius,
-      cyl.height,
-      this.cylinderSegments,
-    );
-    const matrix = new THREE.Matrix4().makeTranslation(
-      cyl.x,
-      baseY + cyl.height / 2,
-      cyl.z,
-    );
-    this._addGeometry(octree, geometry, matrix, "cylinders");
-    geometry.dispose();
-  }
-
-  _addGeometry(octree, geometry, matrix, label = "other", topOnly = false) {
+  _addGeometry(octree, geometry, matrix, label, topOnly = false) {
     const stats = (this._stats[label] ??= {
       triangles: 0,
       skipped: 0,
       filtered: 0,
       normalYSum: 0,
     });
-    // "Cima" local da malha, em coordenadas de mundo (usado só com topOnly)
-    const up = new THREE.Vector3(0, 1, 0).transformDirection(matrix);
+
+    // "Cima" local da malha, em coordenadas de mundo (só usado com topOnly)
+    const up = topOnly
+      ? new THREE.Vector3(0, 1, 0).transformDirection(matrix)
+      : null;
+
     const position = geometry.getAttribute("position");
     const index = geometry.index;
     const triCount = (index ? index.count : position.count) / 3;
@@ -205,31 +181,26 @@ export class CollisionSystem {
       const i1 = index ? index.getX(i * 3 + 1) : i * 3 + 1;
       const i2 = index ? index.getX(i * 3 + 2) : i * 3 + 2;
 
-      const a = new THREE.Vector3().fromBufferAttribute(position, i0);
-      const b = new THREE.Vector3().fromBufferAttribute(position, i1);
-      const c = new THREE.Vector3().fromBufferAttribute(position, i2);
-
-      a.applyMatrix4(matrix);
-      b.applyMatrix4(matrix);
-      c.applyMatrix4(matrix);
+      const a = new THREE.Vector3().fromBufferAttribute(position, i0).applyMatrix4(matrix);
+      const b = new THREE.Vector3().fromBufferAttribute(position, i1).applyMatrix4(matrix);
+      const c = new THREE.Vector3().fromBufferAttribute(position, i2).applyMatrix4(matrix);
 
       // Triângulos com NaN/Infinity corrompem a caixa da Octree (nada colide mais)
-      const sum =
-        a.x + a.y + a.z + b.x + b.y + b.z + c.x + c.y + c.z;
+      const sum = a.x + a.y + a.z + b.x + b.y + b.z + c.x + c.y + c.z;
       if (!Number.isFinite(sum)) {
         stats.skipped++;
         continue;
       }
 
       const triangle = new THREE.Triangle(a, b, c);
-      triangle.getNormal(this._normal);
+      if (topOnly || this.debug) triangle.getNormal(this._normal);
 
       if (topOnly && this._normal.dot(up) < 0.99) {
         stats.filtered++;
         continue;
       }
 
-      stats.normalYSum += this._normal.y;
+      if (this.debug) stats.normalYSum += this._normal.y;
       stats.triangles++;
 
       octree.addTriangle(triangle);
@@ -260,9 +231,7 @@ export class CollisionSystem {
    * oldPosition = posição antes do movimento deste frame.
    */
   calculateCollision(structures, ground, controls, oldPosition, delta) {
-    const structureList = this._asArray(structures);
-    const groundList = this._asArray(ground);
-    this.ensureWorldOctree(structureList, groundList);
+    this.ensureWorldOctree(this._asArray(structures), this._asArray(ground));
 
     const pos = controls.object.position;
     const wasGrounded = this.isGrounded;
@@ -305,10 +274,10 @@ export class CollisionSystem {
 
   /** Um sub-passo: gravidade + resolução de colisões. */
   _step(pos, delta) {
-    this.verticalVelocity -= this.gravity * delta;
-    if (this.verticalVelocity < -this.maxFallSpeed) {
-      this.verticalVelocity = -this.maxFallSpeed;
-    }
+    this.verticalVelocity = Math.max(
+      this.verticalVelocity - this.gravity * delta,
+      -this.maxFallSpeed,
+    );
     pos.y += this.verticalVelocity * delta;
 
     this.isGrounded = false;

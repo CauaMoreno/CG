@@ -25,7 +25,7 @@ export class EnemySystem {
       { type: "snail", position: [-10, 1, -10] },
       { type: "snail", position: [10, 1, 10] },
 
-      { type: "octopus", position: [20, 20, -15] },
+      { type: "octopus", position: [15, 20, -37] },
       { type: "octopus", position: [-33, 1.5, 15] }
     ];
 
@@ -333,16 +333,16 @@ export class EnemySystem {
     const width = 0.9;
     const height = 0.10;
 
-    const backgroundMaterial = new THREE.MeshBasicMaterial({
+    const backgroundMaterial = new THREE.MeshLambertMaterial({
       color: 0x222222,
       transparent: true,
-      depthTest: false
+      depthTest: true
     });
 
-    const fillMaterial = new THREE.MeshBasicMaterial({
+    const fillMaterial = new THREE.MeshLambertMaterial({
       color: 0x35df65,
       transparent: true,
-      depthTest: false
+      depthTest: true
     });
 
     // Fundo da barra

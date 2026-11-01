@@ -436,12 +436,11 @@ export class EnemySystem {
   createKey(position) {
     const key = new THREE.Group();
 
-    const keyMaterial = new THREE.MeshStandardMaterial({
+    const keyMaterial = new THREE.MeshPhongMaterial({
       color: 0x66ffcc,
       emissive: 0x00ffaa,
-      emissiveIntensity: 3,
-      metalness: 0.2,
-      roughness: 0.2
+      shininess: 100,
+      specular: 0xffffff
     });
 
     const sphere = new THREE.Mesh(

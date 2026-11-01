@@ -14,6 +14,7 @@ export class CollisionSystem {
 
     // Estado físico
     this.gravity = 25;
+    this.jumpSpeed = 10;
     this.verticalVelocity = 0;
     this.isGrounded = false;
 
@@ -88,6 +89,13 @@ export class CollisionSystem {
    */
   prepare(structures, ground) {
     this.ensureWorldOctree(this._asArray(structures), this._asArray(ground));
+  }
+
+  jump() {
+    if (!this.isGrounded) return;
+
+    this.verticalVelocity = this.jumpSpeed;
+    this.isGrounded = false;
   }
 
   buildWorldOctree(structures, grounds) {

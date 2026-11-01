@@ -43,23 +43,23 @@ export class ShootingSystem {
     this.weapon = new THREE.Group();
 
     // Materiais
-    const wood = new THREE.MeshStandardMaterial({
+    const wood = new THREE.MeshLambertMaterial({
       color: 0x51301b,
       roughness: 0.85
     });
 
-    const darkWood = new THREE.MeshStandardMaterial({
+    const darkWood = new THREE.MeshLambertMaterial({
       color: 0x302016,
       roughness: 0.9
     });
 
-    const metal = new THREE.MeshStandardMaterial({
+    const metal = new THREE.MeshLambertMaterial({
       color: 0x555b61,
       metalness: 0.8,
       roughness: 0.3
     });
 
-    const darkMetal = new THREE.MeshStandardMaterial({
+    const darkMetal = new THREE.MeshLambertMaterial({
       color: 0x24282c,
       metalness: 0.7,
       roughness: 0.4
@@ -182,7 +182,7 @@ export class ShootingSystem {
 
     const bowString = new THREE.Line(
       stringGeometry,
-      new THREE.LineBasicMaterial({
+      new THREE.MeshLambertMaterial({
         color: 0xd6c5a0
       })
     );
@@ -211,18 +211,18 @@ export class ShootingSystem {
   // Criação do modelo do dardo
   createDartGeometry() {
     this.dartMaterial = {
-      shaft: new THREE.MeshStandardMaterial({
+      shaft: new THREE.MeshLambertMaterial({
         color: 0x49301e,
         roughness: 0.8
       }),
 
-      metal: new THREE.MeshStandardMaterial({
+      metal: new THREE.MeshLambertMaterial({
         color: 0x9ca5aa,
         metalness: 0.9,
         roughness: 0.25
       }),
 
-      feather: new THREE.MeshStandardMaterial({
+      feather: new THREE.MeshLambertMaterial({
         color: 0x8b2525,
         side: THREE.DoubleSide,
         roughness: 0.8

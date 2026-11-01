@@ -17,12 +17,16 @@ export class EnemySystem {
 
     this.fadeDuration = 1.2;
 
+    this.groundHeight = 0.5; // Altura do chão para posicionar os inimigos corretamente
+
     // Posições iniciais dos quatro inimigos
     this.spawnPoints = spawnPoints || [
-      { type: "crawler", position: [-8, 0, -8] },
-      { type: "crawler", position: [8, 0, 8] },
-      { type: "wraith", position: [8, 0, -8] },
-      { type: "wraith", position: [-8, 0, 8] }
+      // Térreo do castelo
+      { type: "crawler", position: [-10, 1, -10] },
+      { type: "crawler", position: [10, 1, 10] },
+
+      { type: "wraith", position: [20, 20, -15] },
+      { type: "wraith", position: [-33, 1.5, 15] }
     ];
 
     // Carregamento dos modelos 3D.
@@ -119,7 +123,7 @@ export class EnemySystem {
       healthBarHeight: isWraith ? 2.25 : 1.35,
 
       light: null,
-      baseLightIntensity: isWraith ? 100 : 500,
+      baseLightIntensity: 50,
       lightColor: isWraith ? 0x32dfff : 0xff3838,
 
       healthBar: null,
@@ -184,14 +188,23 @@ export class EnemySystem {
     // Ajusta a escala proporcionalmente
     const scale = desiredHeight / size.y;
 
+    // Aplica a escala ao modelo
     model.scale.setScalar(scale);
 
-    // Centraliza o modelo horizontalmente e coloca a base no chão
-    model.position.set(
-      -center.x * scale,
-      -box.min.y * scale,
-      -center.z * scale
-    );
+    // Atualiza as matrizes para que o bounding box considere a escala
+    model.updateMatrixWorld(true);
+
+    // Calcula os limites reais do modelo já escalado
+    const scaledBox = new THREE.Box3().setFromObject(model);
+
+    // Centraliza horizontalmente e alinha a base do modelo ao Y = 0
+    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+
+    model.position.x -= scaledCenter.x;
+    model.position.y -= scaledBox.min.y;
+    model.position.z -= scaledCenter.z;
+
+    model.updateMatrixWorld(true);
 
     // Ativa sombras e prepara os materiais para o fade
     model.traverse((child) => {

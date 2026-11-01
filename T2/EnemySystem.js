@@ -22,24 +22,24 @@ export class EnemySystem {
     // Posições iniciais dos quatro inimigos
     this.spawnPoints = spawnPoints || [
       // Térreo do castelo
-      { type: "crawler", position: [-10, 1, -10] },
-      { type: "crawler", position: [10, 1, 10] },
+      { type: "snail", position: [-10, 1, -10] },
+      { type: "snail", position: [10, 1, 10] },
 
-      { type: "wraith", position: [20, 20, -15] },
-      { type: "wraith", position: [-33, 1.5, 15] }
+      { type: "octopus", position: [20, 20, -15] },
+      { type: "octopus", position: [-33, 1.5, 15] }
     ];
 
     // Carregamento dos modelos 3D.
     this.loader = new GLTFLoader();
 
     this.models = {
-      wraith: null,
-      crawler: null
+      octopus: null,
+      snail: null
     };
 
     this.animations = {
-      wraith: [],
-      crawler: []
+      octopus: [],
+      snail: []
     };
 
     this.modelsLoaded = false;
@@ -57,12 +57,12 @@ export class EnemySystem {
       ]);
 
       // Associa cada modelo ao tipo de inimigo.
-      this.models.wraith = octopusGLTF.scene;
-      this.models.crawler = snailGLTF.scene;
+      this.models.octopus = octopusGLTF.scene;
+      this.models.snail = snailGLTF.scene;
 
       // Guarda as animações, caso existam.
-      this.animations.wraith = octopusGLTF.animations || [];
-      this.animations.crawler = snailGLTF.animations || [];
+      this.animations.octopus = octopusGLTF.animations || [];
+      this.animations.snail = snailGLTF.animations || [];
 
       this.modelsLoaded = true;
 
@@ -93,7 +93,7 @@ export class EnemySystem {
 
   // Cria um inimigo do tipo especificado na posição fornecida
   createEnemy(type, position) {
-    const isWraith = type === "wraith";
+    const isOctopus = type === "octopus";
 
     if (!this.models[type]) {
       console.error(`Modelo não encontrado para o inimigo: ${type}`);
@@ -104,8 +104,8 @@ export class EnemySystem {
       type,
       group: new THREE.Group(),
 
-      hp: isWraith ? 5 : 3,
-      maxHp: isWraith ? 5 : 3,
+      hp: isOctopus ? 5 : 3,
+      maxHp: isOctopus ? 5 : 3,
 
       dead: false,
       removed: false,
@@ -119,12 +119,12 @@ export class EnemySystem {
       baseY: position.y,
       elapsed: Math.random() * Math.PI * 2,
 
-      floatHeight: isWraith ? 0.35 : 0,
-      healthBarHeight: isWraith ? 2.25 : 1.35,
+      floatHeight: isOctopus ? 0.35 : 0,
+      healthBarHeight: isOctopus ? 2.25 : 1.35,
 
       light: null,
       baseLightIntensity: 50,
-      lightColor: isWraith ? 0x32dfff : 0xff3838,
+      lightColor: isOctopus ? 0x32dfff : 0xff3838,
 
       healthBar: null,
       healthFill: null,
@@ -175,7 +175,7 @@ export class EnemySystem {
 
     // Altura desejada de cada tipo de inimigo.
     const desiredHeight =
-      enemy.type === "wraith" ? 2.0 : 1.2;
+      enemy.type === "octopus" ? 2.0 : 1.2;
 
     // Evita divisão por zero caso o modelo esteja vazio
     if (size.y <= 0) {
@@ -299,7 +299,7 @@ export class EnemySystem {
 
     enemy.light.position.set(
       0,
-      enemy.type === "wraith" ? 1.3 : 0.8,
+      enemy.type === "octopus" ? 1.3 : 0.8,
       0
     );
 
@@ -317,7 +317,7 @@ export class EnemySystem {
       coreMaterial,
       [
         0,
-        enemy.type === "wraith" ? 1.3 : 0.5,
+        enemy.type === "octopus" ? 1.3 : 0.5,
         0
       ]
     );
@@ -571,7 +571,7 @@ export class EnemySystem {
       }
 
       // Flutuação do espectro
-      if (enemy.type === "wraith") {
+      if (enemy.type === "octopus") {
         enemy.elapsed += delta;
 
         enemy.group.position.y =

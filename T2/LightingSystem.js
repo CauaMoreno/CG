@@ -1,10 +1,10 @@
 import * as THREE from "three";
 
 export class LightingSystem {
-  constructor(scene, castle, shoothingSystem) {
+  constructor(scene, castle, shootingSystem) {
     this.scene = scene;
     this.castle = castle;
-    this.shoothingSystem = shoothingSystem;
+    this.shootingSystem = shootingSystem;
     this.lighting = "day"; // Estado inicial da iluminação
 
     this.fillLight = null;
@@ -26,7 +26,7 @@ export class LightingSystem {
   // Todos os elementos da estrutura, já como Object3D
   getStructureItems() {
     const w = [];
-    for (const item of this.shoothingSystem.weapon.children) {
+    for (const item of this.shootingSystem.weapon.children) {
       if (item.isObject3D) w.push(item);
     }
 

@@ -168,17 +168,25 @@ export class ShootingSystem {
     // Corda do arco
     const stringGeometry = new THREE.BufferGeometry();
 
+    // Pontos da corda
     const stringPoints = [
-      new THREE.Vector3(-0.5, 0.025, -0.34),
-      new THREE.Vector3(0, 0.025, -0.53),
-      new THREE.Vector3(0.5, 0.025, -0.34)
+      // Parafuso esquerdo
+      new THREE.Vector3(-0.39, 0.085, -0.34),
+
+      // Encontro com a parte traseira do dardo
+      new THREE.Vector3(0, 0.15, 0.235),
+
+      // Parafuso direito
+      new THREE.Vector3(0.39, 0.085, -0.34)
     ];
 
     stringGeometry.setFromPoints(stringPoints);
 
     const bowString = new THREE.Line(
       stringGeometry,
-      new THREE.LineBasicMaterial({ color: 0xd6c5a0 })
+      new THREE.LineBasicMaterial({
+        color: 0xd6c5a0
+      })
     );
 
     this.weapon.add(bowString);

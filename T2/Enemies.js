@@ -1,5 +1,7 @@
 
 import * as THREE from "three";
+import { GLTFLoader } from "../build/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "../build/jsm/utils/SkeletonUtils.js";
 
 export class EnemySystem {
   constructor(scene, camera, spawnPoints = null) {
@@ -23,11 +25,60 @@ export class EnemySystem {
       { type: "wraith", position: [-8, 0, 8] }
     ];
 
-    this.spawnEnemies();
+    // Carregamento dos modelos 3D.
+    this.loader = new GLTFLoader();
+
+    this.models = {
+      wraith: null,
+      crawler: null
+    };
+
+    this.animations = {
+      wraith: [],
+      crawler: []
+    };
+
+    this.modelsLoaded = false;
+
+    // Os inimigos só são criados depois que os modelos carregarem
+    this.loadModels();
+  }
+
+  // Carrega os modelos GLB dos inimigos e suas animações
+  async loadModels() {
+    try {
+      const [octopusGLTF, snailGLTF] = await Promise.all([
+        this.loader.loadAsync("./models/Octopus.glb"),
+        this.loader.loadAsync("./models/Snail.glb")
+      ]);
+
+      // Associa cada modelo ao tipo de inimigo.
+      this.models.wraith = octopusGLTF.scene;
+      this.models.crawler = snailGLTF.scene;
+
+      // Guarda as animações, caso existam.
+      this.animations.wraith = octopusGLTF.animations || [];
+      this.animations.crawler = snailGLTF.animations || [];
+
+      this.modelsLoaded = true;
+
+      console.log("Modelos dos inimigos carregados!");
+
+      // Cria os inimigos na cena
+      this.spawnEnemies();
+
+    } catch (error) {
+      console.error("Erro ao carregar os modelos dos inimigos:", error);
+    }
   }
 
   // Cria os inimigos nas posições definidas em spawnPoints
   spawnEnemies() {
+    if (!this.modelsLoaded) {
+      console.warn("Os modelos dos inimigos ainda não foram carregados.");
+      return;
+    }
+
     for (const spawn of this.spawnPoints) {
       this.createEnemy(
         spawn.type,
@@ -36,8 +87,14 @@ export class EnemySystem {
     }
   }
 
+  // Cria um inimigo do tipo especificado na posição fornecida
   createEnemy(type, position) {
     const isWraith = type === "wraith";
+
+    if (!this.models[type]) {
+      console.error(`Modelo não encontrado para o inimigo: ${type}`);
+      return null;
+    }
 
     const enemy = {
       type,
@@ -52,11 +109,18 @@ export class EnemySystem {
       meshes: [],
       fadeMaterials: [],
 
+      model: null,
+      mixer: null,
+
       baseY: position.y,
       elapsed: Math.random() * Math.PI * 2,
 
+      floatHeight: isWraith ? 0.35 : 0,
+      healthBarHeight: isWraith ? 2.25 : 1.35,
+
       light: null,
       baseLightIntensity: isWraith ? 100 : 500,
+      lightColor: isWraith ? 0x32dfff : 0xff3838,
 
       healthBar: null,
       healthFill: null,
@@ -67,12 +131,10 @@ export class EnemySystem {
 
     enemy.group.position.copy(position);
 
-    if (isWraith) {
-      this.createWraith(enemy);
-    } else {
-      this.createCrawler(enemy);
-    }
+    // Adiciona o modelo GLB ao inimigo
+    this.attachModel(enemy);
 
+    // Cria os elementos auxiliares
     this.createHealthBar(enemy);
     this.createEnemyLight(enemy);
 
@@ -80,7 +142,7 @@ export class EnemySystem {
 
     this.enemies.push(enemy);
 
-    // Registra as partes do inimigo que podem receber tiros.
+    // Registra as partes do inimigo que podem receber tiros
     for (const mesh of enemy.meshes) {
       mesh.userData.enemy = enemy;
       this.raycastTargets.push(mesh);
@@ -89,10 +151,101 @@ export class EnemySystem {
     return enemy;
   }
 
-  // ==========================================
-  // FUNÇÕES AUXILIARES DE MODELAGEM
-  // ==========================================
+  // Adiciona o modelo GLB ajustado ao inimigo
+  attachModel(enemy) {
+    // Clona o modelo original
+    // SkeletonUtils preserva corretamente os esqueletos
+    const model = SkeletonUtils.clone(
+      this.models[enemy.type]
+    );
 
+    enemy.model = model;
+
+    // Calcula as dimensões originais do modelo
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+
+    box.getSize(size);
+    box.getCenter(center);
+
+    // Altura desejada de cada tipo de inimigo.
+    const desiredHeight =
+      enemy.type === "wraith" ? 2.0 : 1.2;
+
+    // Evita divisão por zero caso o modelo esteja vazio
+    if (size.y <= 0) {
+      console.error(
+        `O modelo ${enemy.type} possui altura inválida.`
+      );
+      return;
+    }
+
+    // Ajusta a escala proporcionalmente
+    const scale = desiredHeight / size.y;
+
+    model.scale.setScalar(scale);
+
+    // Centraliza o modelo horizontalmente e coloca a base no chão
+    model.position.set(
+      -center.x * scale,
+      -box.min.y * scale,
+      -center.z * scale
+    );
+
+    // Ativa sombras e prepara os materiais para o fade
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+
+      child.castShadow = true;
+      child.receiveShadow = true;
+
+      // Clona os materiais individualmente
+      // Assim, o fade de um inimigo não afeta os outros
+      const originalMaterials = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+
+      const clonedMaterials = originalMaterials.map((material) => {
+        if (!material) return material;
+
+        const cloned = material.clone();
+
+        cloned.transparent = true;
+        cloned.opacity = 1;
+
+        // Evita que materiais transparentes sejam descartados antes de terminar o fade
+        cloned.depthWrite = true;
+
+        enemy.fadeMaterials.push(cloned);
+
+        return cloned;
+      });
+
+      child.material = Array.isArray(child.material)
+        ? clonedMaterials
+        : clonedMaterials[0];
+
+      // Guarda as meshes para o sistema de tiros
+      enemy.meshes.push(child);
+    });
+
+    enemy.group.add(model);
+
+    // Configura as animações, se o GLB possuir alguma
+    const clips = this.animations[enemy.type];
+
+    if (clips && clips.length > 0) {
+      enemy.mixer = new THREE.AnimationMixer(model);
+
+      // Executa a primeira animação disponível
+      const action = enemy.mixer.clipAction(clips[0]);
+      action.play();
+    }
+  }
+
+  // Cria uma mesh auxiliar
+  // Mantida para o núcleo luminoso dos inimigos
   addMesh(enemy, geometry, material, position, scale = null) {
     const mesh = new THREE.Mesh(geometry, material);
 
@@ -102,8 +255,6 @@ export class EnemySystem {
       mesh.scale.set(...scale);
     }
 
-    // Materiais individuais permitem fazer fade
-    // sem afetar outros inimigos.
     mesh.material = material.clone();
     mesh.material.transparent = true;
     mesh.material.opacity = 1;
@@ -125,221 +276,6 @@ export class EnemySystem {
     });
   }
 
-  // Cria tentáculos ou membros alongados entre dois pontos.
-  addSegment(enemy, start, end, radius, material) {
-    const startVector = new THREE.Vector3(...start);
-    const endVector = new THREE.Vector3(...end);
-
-    const direction = new THREE.Vector3()
-      .subVectors(endVector, startVector);
-
-    const length = direction.length();
-
-    const geometry = new THREE.CylinderGeometry(
-      radius * 0.65,
-      radius,
-      length,
-      8
-    );
-
-    const mesh = this.addMesh(
-      enemy,
-      geometry,
-      material,
-      [0, 0, 0]
-    );
-
-    mesh.position.copy(startVector).add(endVector).multiplyScalar(0.5);
-
-    mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      direction.normalize()
-    );
-
-    return mesh;
-  }
-
-  // ==========================================
-  // MODELO 1: ESPECTRO FLUTUANTE
-  // ==========================================
-
-  createWraith(enemy) {
-    const bodyMaterial = this.createMaterial(0x253a48, {
-      metalness: 0.2
-    });
-
-    const cloakMaterial = this.createMaterial(0x101b28, {
-      side: THREE.DoubleSide
-    });
-
-    const eyeMaterial = this.createMaterial(0x7df9ff, {
-      emissive: 0x00cfff,
-      emissiveIntensity: 3
-    });
-
-    // Corpo principal.
-    this.addMesh(
-      enemy,
-      new THREE.SphereGeometry(0.42, 12, 10),
-      bodyMaterial,
-      [0, 1.35, 0],
-      [0.85, 1.15, 0.7]
-    );
-
-    // Manto inferior.
-    this.addMesh(
-      enemy,
-      new THREE.ConeGeometry(0.52, 1.05, 8, 1, true),
-      cloakMaterial,
-      [0, 0.85, 0]
-    );
-
-    // Cabeça.
-    this.addMesh(
-      enemy,
-      new THREE.SphereGeometry(0.28, 10, 10),
-      bodyMaterial,
-      [0, 1.65, 0]
-    );
-
-    // Olhos luminosos.
-    for (const side of [-1, 1]) {
-      this.addMesh(
-        enemy,
-        new THREE.SphereGeometry(0.055, 8, 8),
-        eyeMaterial,
-        [side * 0.12, 1.68, 0.235]
-      );
-    }
-
-    // Braços suspensos.
-    this.addSegment(
-      enemy,
-      [-0.3, 1.3, 0],
-      [-0.65, 0.75, 0.1],
-      0.12,
-      bodyMaterial
-    );
-
-    this.addSegment(
-      enemy,
-      [0.3, 1.3, 0],
-      [0.65, 0.75, 0.1],
-      0.12,
-      bodyMaterial
-    );
-
-    // Extremidades inferiores do manto.
-    for (const side of [-1, 1]) {
-      this.addSegment(
-        enemy,
-        [side * 0.25, 0.55, 0],
-        [side * 0.35, 0.1, 0.1],
-        0.09,
-        cloakMaterial
-      );
-    }
-
-    enemy.floatHeight = 0.35;
-    enemy.healthBarHeight = 2.25;
-    enemy.lightColor = 0x32dfff;
-  }
-
-  // ==========================================
-  // MODELO 2: ABERRAÇÃO RASTEJANTE
-  // ==========================================
-
-  createCrawler(enemy) {
-    const bodyMaterial = this.createMaterial(0x38251f);
-    const fleshMaterial = this.createMaterial(0x542b2b);
-
-    const eyeMaterial = this.createMaterial(0xff4444, {
-      emissive: 0xff0000,
-      emissiveIntensity: 2.5
-    });
-
-    // Corpo alongado.
-    this.addMesh(
-      enemy,
-      new THREE.SphereGeometry(0.5, 12, 10),
-      bodyMaterial,
-      [0, 0.4, 0],
-      [1.4, 0.65, 0.85]
-    );
-
-    // Cabeça.
-    this.addMesh(
-      enemy,
-      new THREE.SphereGeometry(0.32, 10, 10),
-      fleshMaterial,
-      [0, 0.45, 0.55],
-      [1, 0.8, 1]
-    );
-
-    // Mandíbula.
-    this.addMesh(
-      enemy,
-      new THREE.ConeGeometry(0.2, 0.4, 6),
-      bodyMaterial,
-      [0, 0.28, 0.8],
-      [1, 1, 1]
-    );
-
-    // Olhos.
-    for (const side of [-1, 1]) {
-      this.addMesh(
-        enemy,
-        new THREE.SphereGeometry(0.065, 8, 8),
-        eyeMaterial,
-        [side * 0.17, 0.55, 0.76]
-      );
-    }
-
-    // Tentáculos arrastados pelo chão.
-    const tentacles = [
-      {
-        start: [-0.45, 0.35, -0.2],
-        end: [-0.9, 0.08, -0.9]
-      },
-      {
-        start: [0.45, 0.35, -0.2],
-        end: [0.95, 0.08, -0.8]
-      },
-      {
-        start: [-0.35, 0.3, 0.35],
-        end: [-0.8, 0.06, 0.95]
-      },
-      {
-        start: [0.35, 0.3, 0.35],
-        end: [0.8, 0.06, 1.0]
-      }
-    ];
-
-    for (const tentacle of tentacles) {
-      this.addSegment(
-        enemy,
-        tentacle.start,
-        tentacle.end,
-        0.11,
-        fleshMaterial
-      );
-    }
-
-    // Pequenas protuberâncias nas costas.
-    for (let i = 0; i < 3; i++) {
-      this.addMesh(
-        enemy,
-        new THREE.ConeGeometry(0.12, 0.35, 6),
-        fleshMaterial,
-        [(i - 1) * 0.3, 0.78, -0.1]
-      );
-    }
-
-    enemy.floatHeight = 0;
-    enemy.healthBarHeight = 1.35;
-    enemy.lightColor = 0xff3838;
-  }
-
   // Iluminação do inimigo
   createEnemyLight(enemy) {
     enemy.light = new THREE.PointLight(
@@ -356,7 +292,7 @@ export class EnemySystem {
 
     enemy.group.add(enemy.light);
 
-    // Núcleo luminoso visível para destacar a origem da luz.
+    // Núcleo luminoso visível para destacar a origem da luz
     const coreMaterial = this.createMaterial(enemy.lightColor, {
       emissive: enemy.lightColor,
       emissiveIntensity: 2.5
@@ -374,7 +310,7 @@ export class EnemySystem {
     );
   }
 
-  // Cria a barra de vida acima do inimigo
+  // Barra de vida
   createHealthBar(enemy) {
     const bar = new THREE.Group();
 
@@ -393,13 +329,13 @@ export class EnemySystem {
       depthTest: false
     });
 
-    // Fundo da barra.
+    // Fundo da barra
     const background = new THREE.Mesh(
       new THREE.PlaneGeometry(width, height),
       backgroundMaterial
     );
 
-    // Preenchimento da barra.
+    // Preenchimento da barra
     const fill = new THREE.Mesh(
       new THREE.PlaneGeometry(width, height),
       fillMaterial
@@ -411,10 +347,9 @@ export class EnemySystem {
     bar.add(fill);
 
     bar.position.y = enemy.healthBarHeight;
-
     bar.renderOrder = 1000;
 
-    // Os materiais da barra também participam do fade.
+    // Os materiais da barra também participam do fade
     enemy.healthMaterials = [
       backgroundMaterial,
       fillMaterial
@@ -433,11 +368,11 @@ export class EnemySystem {
 
     enemy.healthFill.scale.x = ratio;
 
-    // Mantém a barra alinhada pela esquerda.
+    // Mantém a barra alinhada pela esquerda
     enemy.healthFill.position.x =
       -(0.9 * (1 - ratio)) / 2;
 
-    // Muda a cor conforme a vida restante.
+    // Muda a cor conforme a vida restante
     if (ratio > 0.5) {
       enemy.healthFill.material.color.set(0x35df65);
     } else if (ratio > 0.25) {
@@ -447,7 +382,7 @@ export class EnemySystem {
     }
   }
 
-  // Lida o dano recebido pelo inimigo, atualiza a barra de vida e verifica se ele morreu.
+  // Sistema de dano e morte dos inimigos
   damageEnemy(enemy, damage = 1) {
     if (!enemy || enemy.dead) return;
 
@@ -464,23 +399,27 @@ export class EnemySystem {
     }
   }
 
-  // Marca o inimigo como morto, inicia o fade e remove-o da lista de alvos de tiro.
   killEnemy(enemy) {
     if (enemy.dead) return;
 
     enemy.dead = true;
     enemy.fadeTime = 0;
 
-    // Impede que o inimigo continue recebendo tiros.
+    // Impede que o inimigo continue recebendo tiros
     this.raycastTargets = this.raycastTargets.filter(
       mesh => mesh.userData.enemy !== enemy
     );
 
-    // Solta uma chave na posição do inimigo.
+    // Para a animação quando o inimigo morre
+    if (enemy.mixer) {
+      enemy.mixer.stopAllAction();
+    }
+
+    // Solta uma chave na posição do inimigo
     this.createKey(enemy.group.position);
   }
 
-  // Criação das chaves que o jogador pode coletar.
+  // Sistema de chaves
   createKey(position) {
     const key = new THREE.Group();
 
@@ -499,7 +438,7 @@ export class EnemySystem {
 
     key.add(sphere);
 
-    // Luz própria da chave.
+    // Luz própria da chave
     const light = new THREE.PointLight(
       0x00ffaa,
       1.5,
@@ -523,7 +462,6 @@ export class EnemySystem {
     });
   }
 
-  // Atualiza a posição e rotação das chaves e verifica se o jogador está próximo o suficiente para coletá-las.
   updateKeys(delta, playerPosition) {
     for (let i = this.keys.length - 1; i >= 0; i--) {
       const key = this.keys[i];
@@ -532,13 +470,13 @@ export class EnemySystem {
 
       key.elapsed += delta;
 
-      // Flutuação e rotação da chave.
+      // Flutuação e rotação da chave
       key.group.rotation.y += delta * 1.5;
 
       key.group.position.y =
         key.baseY + Math.sin(key.elapsed * 2) * 0.12;
 
-      // Verifica a proximidade do jogador.
+      // Verifica a proximidade do jogador
       const distance = playerPosition.distanceTo(
         key.group.position
       );
@@ -568,15 +506,25 @@ export class EnemySystem {
   }
 
   // Update geral
-  update(delta, playerPosition = this.camera.position, viewCamera = this.camera) {
+  update(
+    delta,
+    playerPosition = this.camera.position,
+    viewCamera = this.camera
+  ) {
     for (const enemy of this.enemies) {
       if (enemy.removed) continue;
 
-      // Mantém a barra de vida voltada para a câmera.
+      // Mantém a barra de vida voltada para a câmera
       enemy.healthBar.quaternion.copy(
         viewCamera.quaternion
       );
 
+      // Atualiza as animações enquanto o inimigo está vivo
+      if (!enemy.dead && enemy.mixer) {
+        enemy.mixer.update(delta);
+      }
+
+      // Fade gradual do inimigo morto
       if (enemy.dead) {
         enemy.fadeTime += delta;
 
@@ -587,16 +535,17 @@ export class EnemySystem {
 
         const opacity = 1 - progress;
 
-        // Transparência gradual.
+        // Transparência gradual do modelo
         for (const material of enemy.fadeMaterials) {
           material.opacity = opacity;
         }
 
+        // Transparência gradual da barra de vida
         for (const material of enemy.healthMaterials) {
           material.opacity = opacity;
         }
 
-        // Reduz a iluminação até desaparecer.
+        // Reduz a iluminação até desaparecer
         enemy.light.intensity =
           enemy.baseLightIntensity * opacity;
 
@@ -608,7 +557,7 @@ export class EnemySystem {
         continue;
       }
 
-      // Flutuação suave do espectro.
+      // Flutuação do espectro
       if (enemy.type === "wraith") {
         enemy.elapsed += delta;
 
@@ -618,7 +567,7 @@ export class EnemySystem {
       }
     }
 
-    // Verifica a coleta das chaves.
+    // Verifica a coleta das chaves
     this.updateKeys(delta, playerPosition);
   }
 }

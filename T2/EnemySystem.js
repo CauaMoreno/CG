@@ -43,6 +43,8 @@ export class EnemySystem {
     };
 
     this.modelsLoaded = false;
+    this.isNightMode = false; // Inicialmente, o modo noturno está desativado
+    this.enemiesSpawned = false; // Flag para indicar se os inimigos já foram criados
 
     // Os inimigos só são criados depois que os modelos carregarem
     this.loadModels();
@@ -68,9 +70,6 @@ export class EnemySystem {
 
       console.log("Modelos dos inimigos carregados!");
 
-      // Cria os inimigos na cena
-      this.spawnEnemies();
-
     } catch (error) {
       console.error("Erro ao carregar os modelos dos inimigos:", error);
     }
@@ -83,13 +82,53 @@ export class EnemySystem {
       return;
     }
 
+    if (this.enemiesSpawned) { // Verifica se os inimigos já foram criados
+      console.warn("Os inimigos já foram criados.");
+      return;
+    }
+
     for (const spawn of this.spawnPoints) {
       this.createEnemy(
         spawn.type,
         new THREE.Vector3(...spawn.position)
       );
     }
+
+    this.enemiesSpawned = true; // Marca que os inimigos foram criados
   }
+
+  setNightMode(isNight) {
+    this.isNight = isNight;
+
+    // Caso modelos ainda não tenham sido carregados
+    if (!this.modelsLoaded) return;
+
+    // Cria os inimigos apenas na primeira noite
+    if (isNight && !this.enemiesSpawned) {
+      this.spawnEnemies();
+    }
+
+    for (const enemy of this.enemies) {
+      if (enemy.removed) continue;
+
+      // Mostra ou esconde o inimigo sem destruir seu estado
+      enemy.group.visible = isNight;
+
+      // Atualiza os alvos que podem receber tiros
+      if (isNight && !enemy.dead) {
+        for (const mesh of enemy.meshes) {
+          if (!this.raycastTargets.includes(mesh)) {
+            this.raycastTargets.push(mesh);
+          }
+        }
+      } else {
+        this.raycastTargets = this.raycastTargets.filter(
+          mesh => mesh.userData.enemy !== enemy
+        );
+      }
+    }
+  }
+
 
   // Cria um inimigo do tipo especificado na posição fornecida
   createEnemy(type, position) {
@@ -541,59 +580,61 @@ export class EnemySystem {
     playerPosition = this.camera.position,
     viewCamera = this.camera
   ) {
-    for (const enemy of this.enemies) {
-      if (enemy.removed) continue;
+    if (this.isNight) {
+      for (const enemy of this.enemies) {
+        if (enemy.removed) continue;
 
-      // Mantém a barra de vida voltada para a câmera
-      enemy.healthBar.quaternion.copy(
-        viewCamera.quaternion
-      );
-
-      // Atualiza as animações enquanto o inimigo está vivo
-      if (!enemy.dead && enemy.mixer) {
-        enemy.mixer.update(delta);
-      }
-
-      // Fade gradual do inimigo morto
-      if (enemy.dead) {
-        enemy.fadeTime += delta;
-
-        const progress = Math.min(
-          enemy.fadeTime / this.fadeDuration,
-          1
+        // Mantém a barra de vida voltada para a câmera
+        enemy.healthBar.quaternion.copy(
+          viewCamera.quaternion
         );
 
-        const opacity = 1 - progress;
-
-        // Transparência gradual do modelo
-        for (const material of enemy.fadeMaterials) {
-          material.opacity = opacity;
+        // Atualiza as animações enquanto o inimigo está vivo
+        if (!enemy.dead && enemy.mixer) {
+          enemy.mixer.update(delta);
         }
 
-        // Transparência gradual da barra de vida
-        for (const material of enemy.healthMaterials) {
-          material.opacity = opacity;
+        // Fade gradual do inimigo morto
+        if (enemy.dead) {
+          enemy.fadeTime += delta;
+
+          const progress = Math.min(
+            enemy.fadeTime / this.fadeDuration,
+            1
+          );
+
+          const opacity = 1 - progress;
+
+          // Transparência gradual do modelo
+          for (const material of enemy.fadeMaterials) {
+            material.opacity = opacity;
+          }
+
+          // Transparência gradual da barra de vida
+          for (const material of enemy.healthMaterials) {
+            material.opacity = opacity;
+          }
+
+          // Reduz a iluminação até desaparecer
+          enemy.light.intensity =
+            enemy.baseLightIntensity * opacity;
+
+          if (progress >= 1) {
+            this.scene.remove(enemy.group);
+            enemy.removed = true;
+          }
+
+          continue;
         }
 
-        // Reduz a iluminação até desaparecer
-        enemy.light.intensity =
-          enemy.baseLightIntensity * opacity;
+        // Flutuação do espectro
+        if (enemy.type === "octopus") {
+          enemy.elapsed += delta;
 
-        if (progress >= 1) {
-          this.scene.remove(enemy.group);
-          enemy.removed = true;
+          enemy.group.position.y =
+            enemy.baseY +
+            Math.sin(enemy.elapsed * 2) * enemy.floatHeight;
         }
-
-        continue;
-      }
-
-      // Flutuação do espectro
-      if (enemy.type === "octopus") {
-        enemy.elapsed += delta;
-
-        enemy.group.position.y =
-          enemy.baseY +
-          Math.sin(enemy.elapsed * 2) * enemy.floatHeight;
       }
     }
 

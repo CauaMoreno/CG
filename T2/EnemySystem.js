@@ -515,9 +515,24 @@ export class EnemySystem {
 
     this.keysCollected++;
 
+    this.updateKeyCounter();
+
     console.log(
       `Chave coletada! Total: ${this.keysCollected}`
     );
+  }
+
+  updateKeyCounter() {
+    const counter = document.getElementById("key-counter");
+    const count = document.getElementById("key-count");
+
+    if (!counter || !count) return;
+
+    count.textContent = this.keysCollected;
+
+    // Esconde o contador quando não há chaves
+    counter.style.display =
+      this.keysCollected > 0 ? "flex" : "none";
   }
 
   // Update geral

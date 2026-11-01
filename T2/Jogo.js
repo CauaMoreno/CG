@@ -32,7 +32,7 @@ camera1 = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera1.position.set(0, 5, -100);
+camera1.position.set(0, 10, -100);
 camera1.lookAt(new THREE.Vector3(0, 0, 0));
 
 scene.add(camera1);
@@ -175,7 +175,7 @@ window.addEventListener(
 );
 
 const { ground, altar } = createGround(scene);
-const castle = createCastle(scene);
+const castle = createCastle(scene, new THREE.Vector3(0, 1, 0));
 castle.floors.push(altar); 
 const structures = [castle];
 
@@ -183,6 +183,8 @@ collisionSystem.prepare(structures, ground);
 
 const shootingSystem = new ShootingSystem(scene, camera1, castle);
 const lightingSystem = new LightingSystem(scene, castle);
+
+console.log(lightingSystem.sceneBox.getSize(new THREE.Vector3()));
 
 // Loop Único de Renderização
 const clock = new THREE.Clock();

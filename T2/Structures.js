@@ -10,6 +10,7 @@ import * as THREE from "three";
   const materialMadeira = new THREE.MeshLambertMaterial({ color: "brown" });
   const materialAltar = new THREE.MeshLambertMaterial({ color: "darkred" });
   const materialGrama = new THREE.MeshLambertMaterial({ color: "green" });
+  const materialAgua = new THREE.MeshLambertMaterial({ color: "lightblue" });
   const materialInvisivel = new THREE.MeshBasicMaterial({ visible: false });
 
 // ============================================================
@@ -832,6 +833,7 @@ export function createCastle(
   // ==========================================================
   // 1. TORRES CIRCULARES
   // ==========================================================
+
   const corners = [
     [-halfW, -halfD],
     [halfW, -halfD],
@@ -1228,8 +1230,46 @@ export function createCastle(
   ];
   for (const [x, z] of pedestalPositions) createPedestal(x, z, 1, 1, 1.5);
 
+  // ==========================================================
+  // 9. PONTE E CHÃO DO CASTELO
+  // ==========================================================
+
+  // Centro e torres quadradas
+  createFloor(castleWidth, castleDepth, T, 0, -T/2, 0, 0, materialMuralha);
+  createFloor(sTowerSize, sTowerSize, T, tower1PosX, -T/2, tower1PosZ, 0, materialMuralha);
+  createFloor(sTowerSize, sTowerSize, T, tower2PosX, -T/2, tower2PosZ, 0, materialMuralha);
+  createFloor(sTowerSize, sTowerSize, T, tower3PosX, -T/2, tower3PosZ, 0, materialMuralha);
+
+  // Torres circulares nos cantos
+  corners.forEach(([cx, cz]) =>     
+    createRoundFloor({
+      radius: cornerRadius,
+      x: cx,
+      y: -T/2,
+      z: cz,
+      start: 0,
+      length: 2 * Math.PI,
+      height: T,
+      segments: 32,
+      mat: materialMuralha,
+    })
+  );
+
+  // Ponte do portão
+  createFloor(gateOpening, castleDepth, T, 0, -T/2, -castleDepth, 0, materialMuralha);
+  createFloor(gateOpening+2, castleDepth, T, 0, -T/2-0.1, -castleDepth, 0, materialGrama);
+
+  for (const [w, d, x, z] of gateRoof) {
+    createFloor(w+wallThickness, d+wallThickness, T, x, -T/2, z-wallThickness/2, 0, materialMuralha);
+  }
+
+
   return castle;
 }
+
+
+
+
 
 // ============================================================
 // CHÃO
@@ -1243,7 +1283,7 @@ export function createGround(scene) {
   const ground = CSG.toMesh(
     CSG.fromMesh(groundBase).subtract(CSG.fromMesh(hole)),
     groundBase.matrix,
-    materialGrama,
+    materialAgua,
   );
   scene.add(ground);
 

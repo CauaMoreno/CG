@@ -144,6 +144,9 @@ function movementControls(key, value) {
         lightingSystem.changeLighting(); // alterna entre dia e noite
       }
       break;
+    case 32: // Tecla Espaço
+      collisionSystem.jump();
+      break;
   }
 }
 

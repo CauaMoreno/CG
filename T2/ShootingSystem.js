@@ -282,6 +282,7 @@ export class ShootingSystem {
 
     dart.traverse((child) => {
       if (child.isMesh) {
+        child.castShadow = true;
         child.geometry = child.geometry;
         child.material = child.material;
       }

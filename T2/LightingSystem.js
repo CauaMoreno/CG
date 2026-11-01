@@ -25,21 +25,20 @@ export class LightingSystem {
 
   // Todos os elementos da estrutura, já como Object3D
   getStructureItems() {
-    const w = [];
-    for (const item of this.shootingSystem.weapon.children) {
-      if (item.isObject3D) w.push(item);
-    }
-
     const c = this.castle;
-    return [
-      ...(w ?? []),
+    const items = [
+      ...this.shootingSystem.weapon.children,
+      this.shootingSystem.loadedDart,
+      ...this.shootingSystem.projectiles,
       ...(c.walls ?? []),
       ...(c.floors ?? []),
       ...(c.ramps ?? []),
       ...(c.decor ?? []),
       ...(c.cylinders ?? []),
       ...(c.doors ?? []),
-    ]
+    ];
+
+    return [...new Set(items)]
       .map((item) => this.toObject3D(item))
       .filter(Boolean); // descarta o que não for Object3D
   }

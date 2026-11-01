@@ -11,7 +11,7 @@ import { CollisionSystem } from "./CollisionSystem.js";
 import { animateDoors } from "./Animations.js";
 import { ShootingSystem } from "./ShootingSystem.js";
 import { LightingSystem } from "./LightingSystem.js";
-import { EnemySystem } from "./Enemies.js";
+import { EnemySystem } from "./EnemySystem.js";
 
 let scene, renderer, material;
 let mode = 1;

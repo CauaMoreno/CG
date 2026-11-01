@@ -185,7 +185,7 @@ collisionSystem.prepare(structures, ground);
 const enemySystem = new EnemySystem(scene, camera1);
 
 const shootingSystem = new ShootingSystem(scene, camera1, castle, enemySystem);
-const lightingSystem = new LightingSystem(scene, castle);
+const lightingSystem = new LightingSystem(scene, castle, shootingSystem);
 
 // Loop Único de Renderização
 const clock = new THREE.Clock();

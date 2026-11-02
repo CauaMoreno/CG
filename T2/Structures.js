@@ -44,6 +44,7 @@ export class Structure {
     this.ramps = [];
     this.decor = [];
     this.doors = [];
+    this.altarObjects = [];
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -85,6 +86,14 @@ export class Structure {
 
     this.doors.push(door);
     return door;
+  }
+
+  remove(object) {
+    for (const list of [this.walls, this.floors, this.ramps, this.decor]) {
+      const i = list.indexOf(object);
+      if (i !== -1) list.splice(i, 1);
+    }
+    this.group.remove(object);
   }
 }
 
@@ -830,6 +839,8 @@ export function createCastle(
 
     pedestal.position.set(posX, 0, posZ);
     castle.addWall(pedestal);
+
+    return pedestal;
   }
 
   // ==========================================================
@@ -1224,13 +1235,19 @@ export function createCastle(
   // 8. ALTAR
   // ==========================================================
 
+  const pedestalHeight = 1.5;
   const pedestalPositions = [
     [5, -5],
     [-5, 5],
     [5, 5],
     [-5, -5],
   ];
-  for (const [x, z] of pedestalPositions) createPedestal(x, z, 1, 1, 1.5);
+  for (const [x, z] of pedestalPositions) createPedestal(x, z, 1, 1, pedestalHeight);
+  castle.pedestals = pedestalPositions.map(([x, z]) => new THREE.Vector3(x, pedestalHeight, z));
+
+  for (const [x, z] of pedestalPositions) {
+    castle.altarObjects.push(createPedestal(x, z, 1, 1, pedestalHeight));
+  }
 
   // ==========================================================
   // 9. PONTE E CHÃO DO CASTELO
@@ -1261,6 +1278,7 @@ export function createCastle(
   altar.updateMatrix();
   altar.matrixAutoUpdate = false;
   castle.addFloor(altar);
+  castle.altarObjects.push(altar);
 
   // Torres quadradas
   createFloor(sTowerSize, sTowerSize, T, tower1PosX, -T/2, tower1PosZ, 0, materialMuralha);

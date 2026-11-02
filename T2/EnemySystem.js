@@ -12,6 +12,24 @@ export class EnemySystem {
     this.keys = [];
     this.raycastTargets = [];
 
+    // Entrega das chaves no altar
+    this.altar = null;
+    this.altarKeys = []; // chaves voando para o pedestal ou já pousadas
+    this.deliveredKeys = 0;
+    this.arrivedKeys = 0;
+    this.depositTimer = 0;
+    this.keyRestOffset = 0.35; // folga entre o topo do pedestal e o centro da chave
+    this.onAltarComplete = null; // opcional: chamado quando a última chave pousa
+
+    // Geometria e material compartilhados por todas as chaves
+    this.keyGeometry = new THREE.SphereGeometry(0.18, 16, 12);
+    this.keyMaterial = new THREE.MeshPhongMaterial({
+      color: 0x66ffcc,
+      emissive: 0x00ffaa,
+      shininess: 100,
+      specular: 0xffffff,
+    });
+
     this.keysCollected = 0;
     this.pickupDistance = 2.0;
 
@@ -474,45 +492,48 @@ export class EnemySystem {
     this.createKey(enemy.group.position);
   }
 
+  // Atalho de teste: derrota todos os inimigos e coleta todas as chaves de uma vez
+  defeatAll() {
+    this.enemiesSpawned = true; // inimigos ainda não criados (de dia) não nascem mais
+
+    for (const enemy of this.enemies) {
+      if (enemy.removed) continue;
+      if (!enemy.dead) this.killEnemy(enemy); // solta a chave no chão
+
+      // De dia o fade não roda, então remove na hora
+      if (!this.isNight) {
+        this.scene.remove(enemy.group);
+        enemy.removed = true;
+      }
+    }
+
+    // Coleta as chaves que acabaram de cair
+    for (let i = this.keys.length - 1; i >= 0; i--) this.collectKey(i);
+
+    // Garante o total mesmo que algum inimigo nunca tenha sido criado
+    this.keysCollected = this.spawnPoints.length - this.deliveredKeys;
+    this.updateKeyCounter();
+  }
+
   // Sistema de chaves
+  buildKey() {
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(this.keyGeometry, this.keyMaterial));
+    group.add(new THREE.PointLight(0x00ffaa, 1.5, 4));
+    return group;
+  }
+
   createKey(position) {
-    const key = new THREE.Group();
-
-    const keyMaterial = new THREE.MeshPhongMaterial({
-      color: 0x66ffcc,
-      emissive: 0x00ffaa,
-      shininess: 100,
-      specular: 0xffffff
-    });
-
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18, 16, 12),
-      keyMaterial
-    );
-
-    key.add(sphere);
-
-    // Luz própria da chave
-    const light = new THREE.PointLight(
-      0x00ffaa,
-      1.5,
-      4
-    );
-
-    light.position.set(0, 0, 0);
-
-    key.add(light);
-
-    key.position.copy(position);
-    key.position.y += 0.5;
-
-    this.scene.add(key);
+    const group = this.buildKey();
+    group.position.copy(position);
+    group.position.y += 0.5;
+    this.scene.add(group);
 
     this.keys.push({
-      group: key,
+      group,
       collected: false,
       elapsed: 0,
-      baseY: key.position.y
+      baseY: group.position.y,
     });
   }
 
@@ -572,6 +593,75 @@ export class EnemySystem {
     // Esconde o contador quando não há chaves
     counter.style.display =
       this.keysCollected > 0 ? "flex" : "none";
+  }
+
+  // Define onde fica o altar: center (Vector3) e pedestals (topo de cada pedestal, em coordenadas de mundo)
+  setAltar({ center, pedestals, deliverDistance = 7 }) {
+    this.altar = { center, pedestals, deliverDistance };
+  }
+
+  // Entrega uma chave por vez quando o jogador, carregando chaves, chega perto do altar
+  updateAltar(delta, playerPosition) {
+    this.updateAltarKeys(delta);
+
+    if (!this.altar || this.keysCollected === 0) return;
+
+    this.depositTimer = Math.max(0, this.depositTimer - delta);
+    if (this.depositTimer > 0) return;
+
+    const { center, pedestals, deliverDistance } = this.altar;
+    if (this.deliveredKeys >= pedestals.length) return;
+    if (playerPosition.distanceTo(center) > deliverDistance) return;
+
+    this.depositKey(playerPosition, pedestals[this.deliveredKeys]);
+    this.depositTimer = 0.5; // intervalo entre chaves, para saírem em sequência
+  }
+
+  depositKey(from, pedestalTop) {
+    const group = this.buildKey();
+    const start = from.clone();
+    start.y -= 0.5; // sai da altura do peito, não dos olhos
+    group.position.copy(start);
+    this.scene.add(group);
+
+    this.altarKeys.push({
+      group,
+      from: start,
+      to: pedestalTop.clone().setY(pedestalTop.y + this.keyRestOffset),
+      elapsed: 0,
+      duration: 1.0,
+      arrived: false,
+    });
+
+    this.keysCollected--;
+    this.deliveredKeys++;
+    this.updateKeyCounter();
+  }
+
+  // Voo em arco até o pedestal; depois a chave fica girando e flutuando no lugar
+  updateAltarKeys(delta) {
+    for (const key of this.altarKeys) {
+      key.elapsed += delta;
+
+      if (key.arrived) {
+        key.group.rotation.y += delta * 1.5;
+        key.group.position.y = key.to.y + Math.sin(key.elapsed * 2) * 0.08;
+        continue;
+      }
+
+      const t = Math.min(key.elapsed / key.duration, 1);
+      const ease = t * t * (3 - 2 * t);
+
+      key.group.position.lerpVectors(key.from, key.to, ease);
+      key.group.position.y += Math.sin(Math.PI * t) * 1.5; // arco
+      key.group.rotation.y += delta * 6;
+
+      if (t >= 1) {
+        key.arrived = true;
+        key.elapsed = 0;
+        if (++this.arrivedKeys === this.altar.pedestals.length) this.onAltarComplete?.();
+      }
+    }
   }
 
   // Update geral
@@ -640,5 +730,6 @@ export class EnemySystem {
 
     // Verifica a coleta das chaves
     this.updateKeys(delta, playerPosition);
+    this.updateAltar(delta, playerPosition);
   }
 }

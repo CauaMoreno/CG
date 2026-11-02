@@ -140,13 +140,13 @@ function movementControls(key, value) {
       }
       break;
 
-    case 75: // Tecla K
-      if (value) {
-        enemySystem.defeatAll();
-      }
-      break;
+  case 75: // Tecla K
+    if (value) {
+      enemySystem.toggleDefeatAll();
+    }
+    break;
 
-    case 86: // Tecla V
+    case 72: // Tecla H
       if (value) {
         lightingSystem.changeLighting(); // alterna entre dia e noite
         enemySystem.setNightMode(lightingSystem.lighting === "night"); // alterna entre dia e noite

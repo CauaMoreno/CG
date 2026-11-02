@@ -1314,6 +1314,8 @@ export function createCastle(
 
   // Ponte
   createFloor(4, 0.9*castleDepth, T, 0, -T/2, -0.95*castleDepth, 0, materialMuralha);
+  const geometry = new THREE.CylinderGeometry(gateOpening+1, 2, T, 3);
+
   createFloor(gateOpening+3, 0.375*castleDepth, T, 0, -T/2-0.1, -0.875*castleDepth, 0, materialGrama);
   createFloor(gateOpening+1, 5*T/2, T, 0, -T/2-0.1, -halfD-gateTowerSize+5*T/2, 0, materialGrama);
 

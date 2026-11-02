@@ -19,7 +19,8 @@ export class EnemySystem {
     this.arrivedKeys = 0;
     this.depositTimer = 0;
     this.keyRestOffset = 0.35; // folga entre o topo do pedestal e o centro da chave
-    this.onAltarComplete = null; // opcional: chamado quando a última chave pousa
+    this.onAltarComplete = null;
+    this.savedState = null;
 
     // Geometria e material compartilhados por todas as chaves
     this.keyGeometry = new THREE.SphereGeometry(0.18, 16, 12);
@@ -513,6 +514,104 @@ export class EnemySystem {
     // Garante o total mesmo que algum inimigo nunca tenha sido criado
     this.keysCollected = this.spawnPoints.length - this.deliveredKeys;
     this.updateKeyCounter();
+  }
+
+  // Alterna entre executar a derrota geral e restaurar o estado salvo
+  toggleDefeatAll() {
+    if (this.savedState) {
+      this.restoreState();
+    } else {
+      this.saveState();
+      this.defeatAll();
+    }
+  }
+
+  saveState() {
+    this.savedState = {
+      enemiesSpawned: this.enemiesSpawned,
+      keysCollected: this.keysCollected,
+      raycastTargets: [...this.raycastTargets],
+      enemies: this.enemies.map((enemy) => ({
+        hp: enemy.hp,
+        dead: enemy.dead,
+        removed: enemy.removed,
+        fadeTime: enemy.fadeTime,
+        inScene: enemy.group.parent !== null,
+      })),
+      keys: this.keys.map((key) => ({
+        group: key.group,
+        collected: key.collected,
+        elapsed: key.elapsed,
+        baseY: key.baseY,
+        inScene: key.group.parent !== null,
+      })),
+    };
+  }
+
+  restoreState() {
+    if (!this.savedState) return;
+
+    const state = this.savedState;
+
+    this.enemiesSpawned = state.enemiesSpawned;
+
+    for (const key of this.keys) {
+      if (key.group && key.group.parent) {
+        this.scene.remove(key.group);
+      }
+    }
+
+    this.keys = state.keys.map((savedKey) => {
+      if (savedKey.inScene && savedKey.group.parent === null) {
+        this.scene.add(savedKey.group);
+      }
+      return {
+        group: savedKey.group,
+        collected: savedKey.collected,
+        elapsed: savedKey.elapsed,
+        baseY: savedKey.baseY,
+      };
+    });
+
+    this.keysCollected = state.keysCollected;
+
+    for (let i = 0; i < this.enemies.length; i++) {
+      const enemy = this.enemies[i];
+      const savedEnemy = state.enemies[i];
+
+      if (!savedEnemy) continue;
+
+      enemy.hp = savedEnemy.hp;
+      enemy.dead = savedEnemy.dead;
+      enemy.removed = savedEnemy.removed;
+      enemy.fadeTime = savedEnemy.fadeTime;
+
+      for (const mat of enemy.fadeMaterials) mat.opacity = 1;
+      for (const mat of enemy.healthMaterials) mat.opacity = 1;
+      if (enemy.light) enemy.light.intensity = enemy.baseLightIntensity;
+
+      if (savedEnemy.inScene && enemy.group.parent === null) {
+        this.scene.add(enemy.group);
+      } else if (!savedEnemy.inScene && enemy.group.parent !== null) {
+        this.scene.remove(enemy.group);
+      }
+
+      if (!enemy.dead) {
+        this.updateHealthBar(enemy);
+        if (enemy.mixer) {
+          enemy.mixer.stopAllAction();
+          const clips = this.animations[enemy.type];
+          if (clips && clips.length > 0) {
+            enemy.mixer.clipAction(clips[0]).play();
+          }
+        }
+      }
+    }
+
+    this.raycastTargets = [...state.raycastTargets];
+
+    this.updateKeyCounter();
+    this.savedState = null;
   }
 
   // Sistema de chaves

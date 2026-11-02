@@ -61,7 +61,6 @@ export function fadeOut(objects, { duration = 2, onDone } = {}) {
   activeFades.push({ materials, lights, duration, elapsed: 0, onDone });
 }
 
-// Chame uma vez por frame
 export function updateFades(delta) {
   for (let i = activeFades.length - 1; i >= 0; i--) {
     const fade = activeFades[i];

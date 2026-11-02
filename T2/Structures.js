@@ -11,6 +11,7 @@ import * as THREE from "three";
   const materialMadeira = new THREE.MeshLambertMaterial({ color: "brown" });
   const materialAltar = new THREE.MeshLambertMaterial({ color: "darkred" });
   const materialGrama = new THREE.MeshLambertMaterial({ color: "green" });
+  const materialAreia = new THREE.MeshLambertMaterial({ color: "khaki" });
   const materialAgua = new THREE.MeshLambertMaterial({ color: "lightblue" });
   const materialInvisivel = new THREE.MeshBasicMaterial({ visible: false });
 
@@ -1266,7 +1267,7 @@ export function createCastle(
   const floor = CSG.toMesh(
     CSG.fromMesh(floorBase).subtract(CSG.fromMesh(hole)),
     floorBase.matrix,
-    materialMuralha,
+    materialAreia,
   );
 
   castle.addFloor(floor);
@@ -1282,9 +1283,9 @@ export function createCastle(
   castle.altarObjects.push(altar);
 
   // Torres quadradas
-  createFloor(sTowerSize, sTowerSize, T, tower1PosX, -T/2, tower1PosZ, 0, materialMuralha);
-  createFloor(sTowerSize, sTowerSize, T, tower2PosX, -T/2, tower2PosZ, 0, materialMuralha);
-  createFloor(sTowerSize, sTowerSize, T, tower3PosX, -T/2, tower3PosZ, 0, materialMuralha);
+  createFloor(sTowerSize, sTowerSize, T, tower1PosX, -T/2, tower1PosZ, 0, materialAreia);
+  createFloor(sTowerSize, sTowerSize, T, tower2PosX, -T/2, tower2PosZ, 0, materialAreia);
+  createFloor(sTowerSize, sTowerSize, T, tower3PosX, -T/2, tower3PosZ, 0, materialAreia);
 
   // Torres circulares nos cantos
   corners.forEach(([cx, cz]) =>     
@@ -1297,24 +1298,23 @@ export function createCastle(
       length: 2 * Math.PI,
       height: T,
       segments: 32,
-      mat: materialMuralha,
+      mat: materialAreia,
     })
   );
 
   // Portão
   for (const [w, d, x, z] of gateRoof) {
-    createFloor(w, d, T, x, -T/2, z, 0, materialMuralha);
+    createFloor(w, d, T, x, -T/2, z, 0, materialAreia);
   }
 
   for (const [w, x, z, rotY, slits] of gateWalls) {
     for (const s of [-1, 1]) {
-      createWall(w, T, -T/2, s * x, z, rotY, materialMuralha, false);
+      createWall(w, T, -T/2, s * x, z, rotY, materialAreia, false);
     }
   }
 
   // Ponte
-  createFloor(4, 0.9*castleDepth, T, 0, -T/2, -0.95*castleDepth, 0, materialMuralha);
-  const geometry = new THREE.CylinderGeometry(gateOpening+1, 2, T, 3);
+  createFloor(4, 0.9*castleDepth, T, 0, -T/2, -0.95*castleDepth, 0, materialAreia);
 
   createFloor(gateOpening+3, 0.375*castleDepth, T, 0, -T/2-0.1, -0.875*castleDepth, 0, materialGrama);
   createFloor(gateOpening+1, 5*T/2, T, 0, -T/2-0.1, -halfD-gateTowerSize+5*T/2, 0, materialGrama);

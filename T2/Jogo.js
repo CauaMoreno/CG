@@ -174,9 +174,8 @@ window.addEventListener(
   false
 );
 
-const { ground, altar } = createGround(scene);
+const ground = createGround(scene);
 const castle = createCastle(scene, new THREE.Vector3(0, 1, 0));
-castle.floors.push(altar); 
 const structures = [castle];
 
 collisionSystem.prepare(structures, ground);

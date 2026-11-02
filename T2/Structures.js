@@ -436,6 +436,8 @@ export function createCastle(
     mesh.rotation.y = toRad(rotY);
 
     castle.addFloor(mesh);
+
+    return mesh;
   }
 
   // Criador de piso circular
@@ -1234,8 +1236,33 @@ export function createCastle(
   // 9. PONTE E CHÃO DO CASTELO
   // ==========================================================
 
-  // Centro e torres quadradas
-  createFloor(castleWidth, castleDepth, T, 0, -T/2, 0, 0, materialMuralha);
+    const floorBase = csgOperand(
+      new THREE.BoxGeometry(castleWidth, wallThickness, castleDepth),
+      0,
+      -wallThickness / 2,
+      0,
+    );
+
+  const hole = csgOperand(new THREE.CylinderGeometry(5, 5, 2, 32), 0, -0.25, 0);
+
+  const floor = CSG.toMesh(
+    CSG.fromMesh(floorBase).subtract(CSG.fromMesh(hole)),
+    floorBase.matrix,
+    materialMuralha,
+  );
+
+  castle.addFloor(floor);
+
+  const altar = new THREE.Mesh(
+    new THREE.CylinderGeometry(5, 5, 1, 32),
+    materialAltar,
+  );
+  altar.position.set(0, -0.25, 0);
+  altar.updateMatrix();
+  altar.matrixAutoUpdate = false;
+  castle.addFloor(altar);
+
+  // Torres quadradas
   createFloor(sTowerSize, sTowerSize, T, tower1PosX, -T/2, tower1PosZ, 0, materialMuralha);
   createFloor(sTowerSize, sTowerSize, T, tower2PosX, -T/2, tower2PosZ, 0, materialMuralha);
   createFloor(sTowerSize, sTowerSize, T, tower3PosX, -T/2, tower3PosZ, 0, materialMuralha);
@@ -1287,15 +1314,5 @@ export function createGround(scene) {
   );
   scene.add(ground);
 
-  // Disco do altar, na altura do chão
-  const altar = new THREE.Mesh(
-    new THREE.CylinderGeometry(5, 5, 0.5, 32),
-    materialAltar,
-  );
-  altar.position.set(0, -0.25, 0);
-  altar.updateMatrix();
-  altar.matrixAutoUpdate = false;
-  scene.add(altar);
-
-  return { ground, altar };
+  return ground;
 }

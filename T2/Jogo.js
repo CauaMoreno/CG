@@ -8,7 +8,7 @@ import {
 } from "../libs/util/util.js";
 import { createGround, createCastle } from "./Structures.js";
 import { CollisionSystem } from "./CollisionSystem.js";
-import { animateDoors } from "./Animations.js";
+import { animateDoors, fadeOut, updateFades } from "./Animations.js";
 import { ShootingSystem } from "./ShootingSystem.js";
 import { LightingSystem } from "./LightingSystem.js";
 import { EnemySystem } from "./EnemySystem.js";
@@ -139,7 +139,14 @@ function movementControls(key, value) {
         camera.updateProjectionMatrix();
       }
       break;
-    case 86: // Tecla V
+
+  case 75: // Tecla K
+    if (value) {
+      enemySystem.toggleDefeatAll();
+    }
+    break;
+
+    case 72: // Tecla H
       if (value) {
         lightingSystem.changeLighting(); // alterna entre dia e noite
         enemySystem.setNightMode(lightingSystem.lighting === "night"); // alterna entre dia e noite
@@ -190,14 +197,34 @@ const enemySystem = new EnemySystem(scene, camera1);
 const shootingSystem = new ShootingSystem(scene, camera1, castle, enemySystem);
 const lightingSystem = new LightingSystem(scene, castle, shootingSystem);
 
-console.log(lightingSystem.sceneBox.getSize(new THREE.Vector3()));
+castle.group.updateMatrixWorld(true);
+const toWorld = (v) => castle.group.localToWorld(v.clone()); // vale mesmo se o castelo for movido/girado
+
+enemySystem.setAltar({
+  center: toWorld(new THREE.Vector3(0, 0, 0)),
+  pedestals: castle.pedestals.map(toWorld),
+});
+
+enemySystem.onAltarComplete = () => {
+  const keyGroups = enemySystem.altarKeys.map((k) => k.group);
+
+  fadeOut([...castle.altarObjects, ...keyGroups], {
+    duration: 2,
+    onDone: () => {
+      collisionSystem.clearAltar();
+      castle.altarObjects.forEach((o) => castle.remove(o));
+      keyGroups.forEach((g) => scene.remove(g));
+      enemySystem.altarKeys.length = 0;
+    },
+  });
+};
 
 // Loop Único de Renderização
 const clock = new THREE.Clock();
 
 function render() {
   requestAnimationFrame(render);
-  const delta = clock.getDelta();
+  const delta =  Math.min(clock.getDelta(), 1 / 30);
 
   if (mode === 1) {
     moveAnimate(delta);
@@ -208,7 +235,8 @@ function render() {
   }
 
   enemySystem.update(delta, camera1.position, camera);
-
+  updateFades(delta);
+  
   renderer.render(scene, camera);
 }
 

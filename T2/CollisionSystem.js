@@ -25,6 +25,7 @@ export class CollisionSystem {
 
     // Octree e controle de reconstrução
     this.worldOctree = null;
+    this.altarOctree = null;
     this._signature = "";
 
     // Objetos reutilizados (evita criar lixo a cada frame)
@@ -48,6 +49,7 @@ export class CollisionSystem {
   /** Força a reconstrução da Octree no próximo frame. */
   invalidate() {
     this.worldOctree = null;
+    this.altarOctree = null;
     this._signature = "";
   }
 
@@ -58,10 +60,23 @@ export class CollisionSystem {
   }
 
   /** Muda quando entram ou saem objetos de colisão; dispara a reconstrução. */
+  /** Quantos itens da lista não pertencem ao altar. */
+  _countExcluding(list, excluded) {
+    let n = 0;
+    for (const obj of list) if (!excluded.includes(obj)) n++;
+    return n;
+  }
+
+  /** Muda quando entram ou saem objetos de colisão (exceto o altar); dispara a reconstrução. */
   _computeSignature(structures, grounds) {
-    const parts = structures.map((s) =>
-      [s.walls.length, s.floors.length, s.ramps.length].join(","),
-    );
+    const parts = structures.map((s) => {
+      const altar = s.altarObjects ?? [];
+      return [
+        this._countExcluding(s.walls, altar),
+        this._countExcluding(s.floors, altar),
+        this._countExcluding(s.ramps, altar),
+      ].join(",");
+    });
     parts.push(grounds.map((g) => g.uuid).join(","));
     return parts.join("|");
   }
@@ -91,12 +106,27 @@ export class CollisionSystem {
 
   buildWorldOctree(structures, grounds) {
     const octree = new Octree();
+    const altarOctree = new Octree();
+    let altarCount = 0;
     this._stats = {};
 
     for (const structure of structures) {
-      for (const obj of structure.walls) this._addObject(octree, obj, "walls");
-      for (const obj of structure.floors) this._addObject(octree, obj, "floors");
-      for (const obj of structure.ramps) this._addObject(octree, obj, "ramps");
+      const altar = structure.altarObjects ?? [];
+
+      const add = (list, label) => {
+        for (const obj of list) {
+          if (altar.includes(obj)) {
+            this._addObject(altarOctree, obj, label);
+            altarCount++;
+          } else {
+            this._addObject(octree, obj, label);
+          }
+        }
+      };
+
+      add(structure.walls, "walls");
+      add(structure.floors, "floors");
+      add(structure.ramps, "ramps");
     }
 
     for (const ground of grounds) this._addObject(octree, ground, "ground");
@@ -104,7 +134,20 @@ export class CollisionSystem {
     octree.build();
     this.worldOctree = octree;
 
+    // Só existe enquanto o altar estiver na cena
+    if (altarCount > 0) {
+      altarOctree.build();
+      this.altarOctree = altarOctree;
+    } else {
+      this.altarOctree = null;
+    }
+
     if (this.debug) this._printStats(octree);
+  }
+
+  /** Descarta a colisão do altar sem tocar na Octree principal. */
+  clearAltar() {
+    this.altarOctree = null;
   }
 
   _printStats(octree) {
@@ -272,6 +315,24 @@ export class CollisionSystem {
     }
   }
 
+  /** Colisão da cápsula com as duas Octrees; devolve a mais profunda. */
+  _capsuleHit() {
+    const main = this.worldOctree.capsuleIntersect(this._capsule);
+    const altar = this.altarOctree?.capsuleIntersect(this._capsule);
+    if (!main) return altar || null;
+    if (!altar) return main;
+    return altar.depth > main.depth ? altar : main;
+  }
+
+  /** Raio para baixo nas duas Octrees; devolve o acerto mais próximo. */
+  _rayHit() {
+    const main = this.worldOctree.rayIntersect(this._ray);
+    const altar = this.altarOctree?.rayIntersect(this._ray);
+    if (!main) return altar || null;
+    if (!altar) return main;
+    return altar.distance < main.distance ? altar : main;
+  }
+
   /** Um sub-passo: gravidade + resolução de colisões. */
   _step(pos, delta) {
     this.verticalVelocity = Math.max(
@@ -284,7 +345,7 @@ export class CollisionSystem {
 
     for (let i = 0; i < this.maxIterations; i++) {
       this._updateCapsule(pos);
-      const hit = this.worldOctree.capsuleIntersect(this._capsule);
+      const hit = this._capsuleHit();
       if (!hit) break;
 
       const { normal, depth } = hit;
@@ -310,7 +371,7 @@ export class CollisionSystem {
     const feetY = pos.y - this.playerHeight;
 
     this._ray.origin.set(pos.x, feetY + 0.1, pos.z);
-    const result = this.worldOctree.rayIntersect(this._ray);
+    const result = this._rayHit();
     if (!result) return;
 
     const distanceBelowFeet = result.distance - 0.1;

@@ -45,24 +45,18 @@ export class ShootingSystem {
     // Materiais
     const wood = new THREE.MeshLambertMaterial({
       color: 0x51301b,
-      roughness: 0.85
     });
 
     const darkWood = new THREE.MeshLambertMaterial({
       color: 0x302016,
-      roughness: 0.9
     });
 
     const metal = new THREE.MeshLambertMaterial({
       color: 0x555b61,
-      metalness: 0.8,
-      roughness: 0.3
     });
 
     const darkMetal = new THREE.MeshLambertMaterial({
       color: 0x24282c,
-      metalness: 0.7,
-      roughness: 0.4
     });
 
     // Função auxiliar para criar peças

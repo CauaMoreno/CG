@@ -1,3 +1,4 @@
+import { Vector4 } from "../build/three.core.js";
 import { CSG } from "../libs/other/CSGMesh.js";
 import * as THREE from "three";
 
@@ -999,7 +1000,7 @@ export function createCastle(
     [G, G / 3, 0, gateZ + G / 6],
     [G, T, 0, gateZ],
     [G * (7 / 3), G * 0.75 - T, 0, gateZ - G / 5 - T],
-    [G - 2 * T, G / 4, -G / 1.5 - T, gateZ - G / 3 - G / 2 + 1.5 * T],
+    [G - 3 * T, G / 4, -G / 1.5 - T/2, gateZ - G / 3 - G / 2 + 1.5 * T],
     [G - 2 * T, G / 4, G / 1.5 + T, gateZ - G / 3 - G / 2 + 1.5 * T],
   ];
   for (const [w, d, x, z] of gateRoof) {
@@ -1300,14 +1301,34 @@ export function createCastle(
     })
   );
 
-  // Ponte do portão
-  createFloor(gateOpening, castleDepth, T, 0, -T/2, -castleDepth, 0, materialMuralha);
-  createFloor(gateOpening+2, castleDepth, T, 0, -T/2-0.1, -castleDepth, 0, materialGrama);
-
+  // Portão
   for (const [w, d, x, z] of gateRoof) {
-    createFloor(w+wallThickness, d+wallThickness, T, x, -T/2, z-wallThickness/2, 0, materialMuralha);
+    createFloor(w, d, T, x, -T/2, z, 0, materialMuralha);
   }
 
+  for (const [w, x, z, rotY, slits] of gateWalls) {
+    for (const s of [-1, 1]) {
+      createWall(w, T, -T/2, s * x, z, rotY, materialMuralha, false);
+    }
+  }
+
+  // Ponte
+  createFloor(4, 0.9*castleDepth, T, 0, -T/2, -0.95*castleDepth, 0, materialMuralha);
+  createFloor(gateOpening+3, 0.375*castleDepth, T, 0, -T/2-0.1, -0.875*castleDepth, 0, materialGrama);
+  createFloor(gateOpening+1, 5*T/2, T, 0, -T/2-0.1, -halfD-gateTowerSize+5*T/2, 0, materialGrama);
+
+  const island = new THREE.Mesh(
+    new THREE.CylinderGeometry(2*gateOpening, 2*gateOpening, T, 8),
+    materialGrama,
+  );
+  island.position.set(0, -T/2-0.1, -1.25*castleDepth);
+  island.rotation.y = Math.PI / 8;
+  castle.addFloor(island);
+
+  const wall = CSG.toMesh(semicircularArch(5, 8, T, 0, 0, 32), new THREE.Matrix4(), materialMuralha);
+  wall.rotateY(Math.PI/2);
+  wall.position.set(-2.5, -0.1, -castleDepth);
+  castle.addWall(wall);
 
   return castle;
 }

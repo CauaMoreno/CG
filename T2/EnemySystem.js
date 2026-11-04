@@ -73,8 +73,8 @@ export class EnemySystem {
   async loadModels() {
     try {
       const [octopusGLTF, snailGLTF] = await Promise.all([
-        this.loader.loadAsync("./models/Octopus.glb"),
-        this.loader.loadAsync("./models/Snail.glb")
+        this.loader.loadAsync("./Models/Octopus.glb"),
+        this.loader.loadAsync("./Models/Snail.glb")
       ]);
 
       // Associa cada modelo ao tipo de inimigo.
